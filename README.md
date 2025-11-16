@@ -10,9 +10,11 @@ UniMarket is a verified student marketplace that connects buyers and sellers wit
 
 ### User Authentication & Verification
 - Email-based authentication with .edu domain validation
-- Student ID verification using OCR and AI
+- Student ID verification using OCR and AI (OpenRouter API)
+- Automatic name extraction from student IDs
 - Role-based access (Buyer/Seller)
 - Secure session management with NextAuth.js
+- User profiles with name and username (email) display
 
 ### Product Management
 - Create, edit, and manage product listings
@@ -27,12 +29,17 @@ UniMarket is a verified student marketplace that connects buyers and sellers wit
 - Image support in messages
 - Conversation management
 - Message read receipts
+- Automatic buyer/seller role detection based on product context
+- Product context in conversations
 
 ### Payment Integration
 - Blockchain payments via Solana and Ethereum/Arbitrum
 - Payment history tracking
 - Transaction verification
 - Support for listing fees and product boosts
+- Seller earnings tracking (separate ETH and SOL balances)
+- Platform wallet integration for seller claims
+- Separate claim buttons for ETH and SOL earnings
 
 ### Additional Features
 - User profiles and avatars
@@ -71,7 +78,8 @@ UniMarket is a verified student marketplace that connects buyers and sellers wit
 ### Additional Services
 - Cloudinary for image hosting
 - Tesseract.js for OCR
-- Google Generative AI for ID verification
+- OpenRouter API for AI-powered ID verification (using OpenAI GPT models)
+- bs58 for Solana keypair encoding/decoding
 
 ## Prerequisites
 
@@ -135,13 +143,26 @@ CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 
-# Google Generative AI (for ID verification)
-GOOGLE_GENERATIVE_AI_API_KEY=your-api-key
+# OpenRouter API (for ID verification)
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_API_URL=https://openrouter.ai/api/v1/chat/completions
+OPENROUTER_MODEL=openai/gpt-5.1-codex-mini
+
+# Platform Wallet Configuration (for seller claims)
+# Ethereum/Arbitrum platform wallet private key
+PLATFORM_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+NEXT_PUBLIC_PLATFORM_ETH_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+# Solana platform wallet private key (base58 or JSON array format)
+PLATFORM_SOL_PRIVATE_KEY=your-solana-private-key
+NEXT_PUBLIC_PLATFORM_SOL_ADDRESS=12SogrSHvLfLV9jnjDmhjgq1tgGBcGvFXvSv1XNAhWR7
 
 # Blockchain Configuration
 # Solana
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
 # Or: mainnet-beta, testnet
+NEXT_PUBLIC_SOLANA_RPC=http://127.0.0.1:8899
+# Or for public: https://api.devnet.solana.com
 
 # Ethereum/Arbitrum
 NEXT_PUBLIC_ARBITRUM_RPC_URL=https://arb1.arbitrum.io/rpc
@@ -243,7 +264,12 @@ blockchain_hackathon/
 │       └── ...
 ├── lib/                   # Utility libraries
 │   ├── blockchain/       # Blockchain integration
-│   ├── mongodb.ts        # Database connection
+│   │   ├── claim.ts     # Seller earnings claims (ETH/SOL)
+│   │   ├── payment.ts   # Payment processing
+│   │   ├── arbitrum.ts  # Arbitrum/Ethereum integration
+│   │   └── solana.ts    # Solana integration
+│   ├── format.ts        # Name formatting utilities
+│   ├── mongodb.ts       # Database connection
 │   └── ...
 ├── scripts/              # Utility scripts
 │   └── reset-database.js # Database reset script
@@ -276,10 +302,17 @@ blockchain_hackathon/
 - `POST /api/payments/confirm` - Confirm payment
 - `POST /api/payments/verify` - Verify transaction
 
+### Seller Earnings
+- `GET /api/seller/earnings` - Get seller earnings breakdown (ETH and SOL)
+- `POST /api/seller/claim` - Claim seller earnings (ETH or SOL)
+
 ### Users
 - `GET /api/users/current` - Get current user
 - `GET /api/users/[id]` - Get user profile
 - `GET /api/users/stats` - Get user statistics
+
+### ID Verification
+- `POST /api/id/upload` - Upload student ID for verification (extracts name, student ID, university)
 
 ## Blockchain Integration
 
@@ -290,9 +323,19 @@ The application supports Solana payments through the Phantom wallet adapter. Tra
 ### Ethereum/Arbitrum Integration
 
 Ethereum and Arbitrum payments are handled through Wagmi and Viem. The application supports:
-- MetaMask wallet connection
+- MetaMask and Gemini Wallet connection
 - Transaction signing and confirmation
 - Local Arbitrum node support for development
+- Platform wallet integration for seller earnings claims
+
+### Seller Earnings & Claims
+
+Sellers can track and claim their earnings separately for ETH and SOL:
+- Earnings are tracked separately by payment method
+- Separate claim buttons for ETH and SOL earnings
+- Claims are sent from the platform wallet to the seller's connected wallet
+- Automatic wallet address detection from connected wallet
+- Transaction verification and confirmation
 
 ### Local Blockchain Setup
 
@@ -323,8 +366,15 @@ Users must verify their .edu email address before accessing the platform. Verifi
 The platform uses OCR and AI to verify student IDs:
 1. User uploads a photo of their student ID
 2. Tesseract.js extracts text from the image
-3. Google Generative AI verifies the information
-4. User is marked as verified upon successful validation
+3. OpenRouter API (using OpenAI GPT models) verifies and extracts structured information
+4. Extracted name is automatically saved to the user's profile
+5. User is marked as verified upon successful validation
+
+The verification process extracts:
+- Full name (automatically set as account name)
+- Student ID number
+- University/Institution name
+- Expiration date (if available)
 
 ## Deployment
 
@@ -385,6 +435,14 @@ Ensure all environment variables are set in your deployment platform.
 - Verify wallet is connected
 - Check network configuration (devnet/testnet/mainnet)
 - Ensure sufficient balance for transactions
+- Verify platform wallet private keys are set correctly
+- Check platform wallet has sufficient balance for claims
+
+### ID Verification Issues
+- Ensure OpenRouter API key is set
+- Verify OpenRouter API URL and model are configured
+- Check image quality and format (JPEG/PNG, max 5MB)
+- Ensure student ID is clearly visible in the image
 
 ## Contributing
 
