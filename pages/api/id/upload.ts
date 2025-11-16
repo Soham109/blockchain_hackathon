@@ -5,6 +5,8 @@ import { getDb } from '../../../lib/mongodb';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { ObjectId } from 'mongodb';
+import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 
 // --------------------
 // Multer config
@@ -253,21 +255,112 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isVerified = !!normalized.student_id;
     console.log('Is verified:', isVerified, '(has student_id:', !!normalized.student_id, ')');
 
+    // Generate secrets (UUIDs)
+    const secrets = {
+      nameSecret: randomUUID(),
+      studentIdSecret: randomUUID(),
+      universitySecret: randomUUID(),
+      expirationSecret: randomUUID(),
+    };
+
+    // Hash the normalized data (SHA256 produces 32 bytes = 64 hex chars)
+    const hashData = (data: string | null): string => {
+      if (!data) return crypto.createHash('sha256').update('').digest('hex');
+      return crypto.createHash('sha256').update(String(data).toLowerCase().trim()).digest('hex');
+    };
+
+    const nameHash = hashData(normalized.name);
+    const studentIdHash = hashData(normalized.student_id);
+    const universityHash = hashData(normalized.university);
+    const expirationDateHash = hashData(normalized.expiration_date);
+
+    // Verify hashes are 32 bytes (64 hex characters)
+    const verifyHash = (hash: string, field: string) => {
+      if (hash.length !== 64) {
+        throw new Error(`Invalid hash length for ${field}: expected 64 hex chars, got ${hash.length}`);
+      }
+    };
+    verifyHash(nameHash, 'name');
+    verifyHash(studentIdHash, 'student_id');
+    verifyHash(universityHash, 'university');
+    verifyHash(expirationDateHash, 'expiration_date');
+
+    // Generate record ID (use timestamp or MongoDB ID)
+    const recordId = Date.now();
+
+    // Submit to Solana Proof Store
+    let proofStoreResult: any = null;
+    try {
+      console.log('Submitting to Solana Proof Store...');
+      const PROOF_STORE_API = process.env.PROOF_STORE_API_URL;
+      
+      if (!PROOF_STORE_API) {
+        throw new Error('PROOF_STORE_API_URL environment variable is not set');
+      }
+
+      console.log('Submitting with data:', {
+        record_id: recordId,
+        name_hash: nameHash.substring(0, 16) + '...',
+        student_id_hash: studentIdHash.substring(0, 16) + '...',
+        university_hash: universityHash.substring(0, 16) + '...',
+        expiration_date_hash: expirationDateHash.substring(0, 16) + '...',
+      });
+
+      const proofResponse = await fetch(`${PROOF_STORE_API}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          record_id: recordId,
+          name_hash: nameHash,
+          student_id_hash: studentIdHash,
+          university_hash: universityHash,
+          expiration_date_hash: expirationDateHash,
+        }),
+      });
+
+      if (!proofResponse.ok) {
+        const errorText = await proofResponse.text().catch(() => 'Unknown error');
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        throw new Error(`Proof store API error: ${proofResponse.status} - ${errorData.error || errorText}`);
+      }
+
+      proofStoreResult = await proofResponse.json();
+      console.log('Proof store submission successful:', {
+        tx: proofStoreResult.tx,
+        record_pda: proofStoreResult.record_pda,
+        status: proofStoreResult.status,
+      });
+    } catch (error: any) {
+      console.error('Failed to submit to proof store:', error);
+      // Don't fail the whole process, but mark as pending
+      // The record will stay in review until proof store submission succeeds
+    }
+
     const insert = {
       userId: new ObjectId(userId),
       ocrRaw: ocrResult,
       rawModelText: modelRawText,
       parsed: normalized,
-      status: isVerified ? 'verified' : 'pending',
-      createdAt: new Date()
+      status: (isVerified && proofStoreResult) ? 'verified' : 'pending',
+      createdAt: new Date(),
+      recordId: recordId,
+      proofStoreTx: proofStoreResult?.tx || null,
+      proofStorePda: proofStoreResult?.record_pda || null,
     };
 
     console.log('Inserting into database...');
     const result = await db.collection('id_verifications').insertOne(insert);
     console.log('Inserted with ID:', result.insertedId);
 
-    // Update user
-    if (isVerified) {
+    // Only update user if verified AND proof store submission succeeded
+    if (isVerified && proofStoreResult) {
       console.log('Updating user as verified...');
       const updateData: any = { 
         studentId: normalized.student_id, 
@@ -291,10 +384,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const response = { 
       ok: true, 
       idVerificationId: result.insertedId, 
-      parsed: normalized, 
+      parsed: normalized, // OCR values (name, student_id, university, expiration_date)
       status: insert.status, 
       rawModelText: modelRawText,
-      ocrResult: ocrResult
+      ocrResult: ocrResult,
+      recordId: recordId,
+      proofStoreTx: proofStoreResult?.tx || null,
+      proofStorePda: proofStoreResult?.record_pda || null,
+      secrets: secrets, // Return secrets to frontend
+      hashes: {
+        name: nameHash,
+        student_id: studentIdHash,
+        university: universityHash,
+        expiration_date: expirationDateHash,
+      },
     };
     
     console.log('=== Final Response ===');

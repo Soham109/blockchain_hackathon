@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { AvatarUpload } from '@/app/components/AvatarUpload';
-import { Store, Package, Star, MessageCircle, Heart, Calendar, Mail, User } from 'lucide-react';
+import { Store, Package, Star, MessageCircle, Heart, Calendar, Mail, User, Shield } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatName } from '@/lib/format';
+import { ViewProofsModal } from '@/app/components/ViewProofsModal';
 
 export default function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -18,6 +19,7 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [proofsOpen, setProofsOpen] = useState(false);
   const isOwnProfile = session?.user && (session.user as any).id === id;
 
   useEffect(() => {
@@ -139,10 +141,27 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                     Member since {new Date(profile.createdAt).toLocaleDateString()}
                   </p>
                 )}
+                {isOwnProfile && profile.studentVerified && (
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setProofsOpen(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Shield className="h-4 w-4" />
+                      View Proofs
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* View Proofs Modal */}
+        {isOwnProfile && (
+          <ViewProofsModal open={proofsOpen} onOpenChange={setProofsOpen} />
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

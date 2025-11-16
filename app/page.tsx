@@ -111,7 +111,7 @@ export default function HomePage() {
           </div>
 
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            The exclusive marketplace for verified students. Trade textbooks, gear, and services with complete trust and zero fees.
+            The exclusive marketplace for verified students. Trade textbooks, gear, and services with complete trust. Minimal listing fees for sellers, zero transaction fees for buyers.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
@@ -137,8 +137,8 @@ export default function HomePage() {
               <div className="text-sm text-muted-foreground mt-1">Verified</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-blue-500 dark:text-blue-400">$0</div>
-              <div className="text-sm text-muted-foreground mt-1">Fees</div>
+              <div className="text-4xl font-bold text-blue-500 dark:text-blue-400">Minimal</div>
+              <div className="text-sm text-muted-foreground mt-1">Listing Fees</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-purple-500 dark:text-purple-400">24/7</div>
@@ -165,8 +165,8 @@ export default function HomePage() {
             },
             {
               icon: Zap,
-              title: 'Zero Transaction Fees',
-              description: 'Keep 100% of what you earn. We don\'t take a cut. Your money stays in your pocket.',
+              title: 'Minimal Listing Fees',
+              description: 'Sellers pay a small one-time listing fee. Buyers pay zero transaction fees. Keep 100% of your sales.',
               color: 'from-yellow-500 to-amber-500',
             },
             {
@@ -252,7 +252,7 @@ export default function HomePage() {
                 </span>
               </Link>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                The exclusive marketplace for verified students. Trade with complete trust and zero fees.
+                The exclusive marketplace for verified students. Trade with complete trust. Minimal listing fees for sellers.
               </p>
             </div>
 
@@ -350,7 +350,7 @@ export default function HomePage() {
               </div>
               <div className="flex items-center gap-1">
                 <Zap className="h-3 w-3" />
-                <span>Zero Fees</span>
+                <span>Minimal Fees</span>
               </div>
               <div className="flex items-center gap-1">
                 <Users className="h-3 w-3" />

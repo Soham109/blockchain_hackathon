@@ -69,13 +69,40 @@ function SignInContent() {
         // Update session to get latest user data
         await update();
         
-        // Fetch user data to check verification status
+        // Fetch user data to check verification status and load proof store data
         try {
           // Get user ID from the response or fetch current user
           const userRes = await fetch('/api/users/current');
           if (userRes.ok) {
             const userData = await userRes.json();
             const user = userData.user;
+            
+            // Load proof store data if user is verified
+            if (user?.studentVerified) {
+              try {
+                const proofRes = await fetch('/api/users/proof-store');
+                if (proofRes.ok) {
+                  const proofData = await proofRes.json();
+                  // Get secrets from localStorage if available, otherwise use empty placeholders
+                  const stored = localStorage.getItem('proofStoreData');
+                  const storedData = stored ? JSON.parse(stored) : {};
+                  
+                  const proofStoreData = {
+                    recordId: proofData.recordId,
+                    recordPda: proofData.recordPda,
+                    tx: proofData.tx,
+                    parsed: proofData.parsed,
+                    hashes: proofData.hashes,
+                    secrets: storedData.secrets || {}, // Use stored secrets or empty
+                  };
+                  
+                  localStorage.setItem('proofStoreData', JSON.stringify(proofStoreData));
+                }
+              } catch (err) {
+                console.warn('Failed to load proof store data:', err);
+                // Continue anyway
+              }
+            }
             
             // If user is not student verified, redirect to onboarding
             if (!user?.studentVerified) {

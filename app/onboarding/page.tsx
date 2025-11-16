@@ -85,6 +85,20 @@ export default function OnboardingPage() {
         setUploadStatus('success');
         setLatestVerification(data);
         
+        // Save secrets, OCR values, and proof store data to localStorage
+        if (data?.secrets && data?.recordId && data?.proofStorePda) {
+          const proofStoreData = {
+            recordId: data.recordId,
+            recordPda: data.proofStorePda,
+            tx: data.proofStoreTx,
+            secrets: data.secrets,
+            parsed: data.parsed, // OCR values (name, student_id, university, expiration_date)
+            hashes: data.hashes, // Hashes for verification
+          };
+          localStorage.setItem('proofStoreData', JSON.stringify(proofStoreData));
+          console.log('Saved proof store data to localStorage:', proofStoreData);
+        }
+        
         console.log('Upload successful, verification status:', data?.status);
         
         // If verified immediately, redirect
