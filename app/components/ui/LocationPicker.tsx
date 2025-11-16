@@ -31,7 +31,11 @@ export function LocationPicker({ latitude, longitude, address, onLocationChange 
   useEffect(() => {
     if (latitude && longitude) {
       setMapCenter([latitude, longitude]);
-      setCurrentLocation({ lat: latitude, lng: longitude, address: address || '' });
+      const location = { lat: latitude, lng: longitude, address: address || '' };
+      setCurrentLocation(location);
+      if (address) {
+        setSearchQuery(address);
+      }
     } else {
       // Try to get user's current location
       getCurrentLocation();
@@ -63,10 +67,13 @@ export function LocationPicker({ latitude, longitude, address, onLocationChange 
           const address = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           const location = { lat: latitude, lng: longitude, address };
           setCurrentLocation(location);
+          setSearchQuery(address);
           onLocationChange(location);
         } catch (error) {
-          const location = { lat: latitude, lng: longitude, address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` };
+          const address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          const location = { lat: latitude, lng: longitude, address };
           setCurrentLocation(location);
+          setSearchQuery(address);
           onLocationChange(location);
         } finally {
           setIsLocating(false);
@@ -121,6 +128,7 @@ export function LocationPicker({ latitude, longitude, address, onLocationChange 
 
   const handleMapClick = (location: { lat: number; lng: number; address: string }) => {
     setCurrentLocation(location);
+    setSearchQuery(location.address);
     onLocationChange(location);
   };
 
@@ -129,21 +137,24 @@ export function LocationPicker({ latitude, longitude, address, onLocationChange 
       <div className="space-y-2">
         <Label>Product Location</Label>
         <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Enter address or search..."
-            value={searchQuery || (currentLocation?.address || '')}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSearch();
-              }
-            }}
-            className="flex-1"
-          />
+          <div className="flex-1 relative">
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Enter address or search..."
+              value={searchQuery || (currentLocation?.address || '')}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              className="pl-9"
+            />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -166,18 +177,10 @@ export function LocationPicker({ latitude, longitude, address, onLocationChange 
         </div>
       </div>
 
-      {currentLocation && (
-        <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg border">
-          <MapPin className="h-4 w-4 text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{currentLocation.address}</p>
-          </div>
-        </div>
-      )}
-
       <details className="border rounded-lg overflow-hidden">
-        <summary className="cursor-pointer p-2 text-sm font-medium hover:bg-muted/50">
-          {currentLocation ? '📍 View on Map' : '📍 Show Map (Optional)'}
+        <summary className="cursor-pointer p-2 text-sm font-medium hover:bg-muted/50 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          {currentLocation ? 'View on Map' : 'Show Map (Optional)'}
         </summary>
         <div className="border-t" style={{ height: '200px' }}>
           <MapComponent

@@ -224,25 +224,27 @@ export default function CreateListing() {
 
   return (
     <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300">
-      <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="pt-4">
+          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
+            <span className="text-blue-500 dark:text-cyan-400">Create</span>{' '}
+            <span>New Listing</span>
+          </h1>
+        </div>
+        
         <Card className="border-2 shadow-lg transition-all duration-300 hover:shadow-xl">
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Plus className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-4xl font-bold">Create New Listing</CardTitle>
-            </div>
-            <div className="flex items-center gap-2 p-4 bg-muted rounded-lg border-2">
-              <AlertCircle className="h-5 w-5 text-primary" />
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border-2">
+              <AlertCircle className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium">
                 Listing fee: <span className="font-bold text-primary">{LISTING_FEE} ETH</span> (payable via Arbitrum or Solana)
               </p>
             </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={submit} className="space-y-6">
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+            <form onSubmit={submit} className="space-y-4">
+              <div>
                 <Label htmlFor="title" className="text-base font-semibold">Title *</Label>
                 <Input
                   id="title"
@@ -254,7 +256,7 @@ export default function CreateListing() {
                 />
               </div>
               
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-75">
+              <div>
                 <Label htmlFor="description" className="text-base font-semibold">Description</Label>
                 <Textarea
                   id="description"
@@ -266,7 +268,7 @@ export default function CreateListing() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-2 duration-300 delay-150">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="price" className="text-base font-semibold">Price (USD) *</Label>
                   <Input
@@ -299,7 +301,7 @@ export default function CreateListing() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-2 duration-300 delay-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="condition" className="text-base font-semibold">Condition *</Label>
                   <Select value={condition} onValueChange={setCondition}>
@@ -317,7 +319,7 @@ export default function CreateListing() {
                 </div>
               </div>
 
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-225">
+              <div>
                 <LocationPicker
                   latitude={latitude}
                   longitude={longitude}
@@ -326,7 +328,7 @@ export default function CreateListing() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-2 duration-300 delay-250">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="brand" className="text-base font-semibold">Brand/Manufacturer</Label>
                   <Input
@@ -351,7 +353,6 @@ export default function CreateListing() {
               
               <div 
                 ref={imageUploadRef}
-                className="animate-in fade-in slide-in-from-left-2 duration-300 delay-300"
               >
                 <Label className="text-base font-semibold">Product Images *</Label>
                 <ImageUpload
@@ -366,7 +367,7 @@ export default function CreateListing() {
                 </p>
               </div>
               
-              <div className="flex gap-3 justify-end pt-6 border-t-2 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-400">
+              <div className="flex gap-3 justify-end pt-4 border-t-2 mt-4">
                 <Button
                   type="button"
                   variant="outline"

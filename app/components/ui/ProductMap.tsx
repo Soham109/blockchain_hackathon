@@ -13,13 +13,25 @@ interface ProductMapProps {
 }
 
 export function ProductMap({ latitude, longitude, address, userLocation }: ProductMapProps) {
-  const center: [number, number] = [latitude, longitude];
+  // Center map between user and product if both exist, otherwise center on product
+  let center: [number, number] = [latitude, longitude];
+  let zoom = 15;
+  
+  if (userLocation) {
+    // Calculate center point between user and product
+    center = [
+      (userLocation.lat + latitude) / 2,
+      (userLocation.lng + longitude) / 2
+    ];
+    // Adjust zoom to fit both locations
+    zoom = 13;
+  }
 
   return (
-    <div className="border rounded-lg overflow-hidden" style={{ height: '300px' }}>
+    <div className="border rounded-lg overflow-hidden relative z-0" style={{ height: '300px' }}>
       <MapComponent
         center={center}
-        zoom={15}
+        zoom={zoom}
         productLocation={{ lat: latitude, lng: longitude, address }}
         userLocation={userLocation}
       />

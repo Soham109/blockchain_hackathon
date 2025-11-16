@@ -128,7 +128,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   // Always return the same structure
   return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+    <div className="min-h-screen pt-20 pb-12 px-4 bg-background">
       {isLoading || loading ? (
         <div className="flex items-center justify-center">
           <div className="space-y-4 w-full max-w-7xl">
@@ -157,7 +157,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </Card>
         </div>
       ) : (
-        <main className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
+        <main className="min-h-screen pt-20 pb-12 px-4 bg-background transition-all duration-300 page-transition">
           {(() => {
             const price = product.price || (product.priceCents / 100).toFixed(2);
             const conditionLabels: Record<string, string> = {
@@ -383,10 +383,32 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div className="pt-2">
             <Card className="border">
               <CardContent className="p-4">
-                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Product Location
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Product Location
+                  </h3>
+                  {userLocation && (() => {
+                    const distanceKm = calculateDistance(
+                      userLocation.lat,
+                      userLocation.lng,
+                      product.latitude,
+                      product.longitude
+                    );
+                    const distance = formatDistance(distanceKm);
+                    const timeMinutes = estimateTravelTime(distanceKm, 'walking');
+                    const travelTime = formatTravelTime(timeMinutes);
+                    return (
+                      <div className="flex items-center gap-2 text-xs text-primary font-medium">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span>{distance}</span>
+                        <span>•</span>
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>{travelTime}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
                 <ProductMap
                   latitude={product.latitude}
                   longitude={product.longitude}

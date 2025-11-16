@@ -91,11 +91,11 @@ export function ProductCard({
             </button>
           )}
         </div>
-        <CardContent className="p-4 flex-1 flex flex-col">
-          <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+        <CardContent className="p-3 flex-1 flex flex-col">
+          <h3 className="font-semibold text-base mb-1.5 line-clamp-2 group-hover:text-primary transition-colors">
             {product.title}
           </h3>
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-grow">
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-grow">
             {product.description || 'No description available'}
           </p>
           <div className="space-y-2 mt-auto">
@@ -105,9 +105,9 @@ export function ProductCard({
               </span>
             </div>
             <div className="space-y-1">
-              {product.location && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
+            {product.location && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" />
                   <span className="truncate">{product.location}</span>
                 </div>
               )}
@@ -122,8 +122,8 @@ export function ProductCard({
                       <span>{travelTime}</span>
                     </>
                   )}
-                </div>
-              )}
+              </div>
+            )}
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
               <span>

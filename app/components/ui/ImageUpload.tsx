@@ -105,21 +105,21 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
           } catch (error) {
             console.error(`Failed to compress image ${file.name}:`, error);
             // Fallback to original if compression fails
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const result = e.target?.result as string;
-                if (result && result.length > 0) {
-                  resolve(result);
-                } else {
-                  reject(new Error('Failed to read file'));
-                }
-              };
-              reader.onerror = () => reject(new Error('Failed to read file'));
-              reader.readAsDataURL(file);
-            });
-            if (dataUrl && dataUrl.length > 0) {
-              newImages.push(dataUrl);
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const result = e.target?.result as string;
+              if (result && result.length > 0) {
+                resolve(result);
+              } else {
+                reject(new Error('Failed to read file'));
+              }
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+          });
+          if (dataUrl && dataUrl.length > 0) {
+            newImages.push(dataUrl);
             }
           }
         }

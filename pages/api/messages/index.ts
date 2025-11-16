@@ -56,18 +56,78 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Cannot message yourself' });
     }
 
-    // Check if conversation already exists between these two users
-    // First check by participant IDs (most reliable)
+    // Normalize participant arrays for consistent comparison
+    const sortedParticipantIds = [userId, receiverUserId].sort();
+    const sortedParticipantEmails = [session.user.email, receiverEmail || ''].filter(Boolean).sort();
+    
+    // Check if conversation already exists - use multiple strategies to be absolutely sure
+    // Strategy 1: Check by sorted participant IDs (most reliable)
     const existingByIds = await db.collection('conversations').findOne({
-      participantIds: { $all: [userId, receiverUserId], $size: 2 }
+      $or: [
+        // Exact match with sorted array
+        { participantIds: { $eq: sortedParticipantIds } },
+        // Both IDs present and array size is 2
+        {
+          $and: [
+            { participantIds: { $all: sortedParticipantIds } },
+            { $expr: { $eq: [{ $size: '$participantIds' }, 2] } }
+          ]
+        }
+      ]
     });
 
-    // If not found by IDs, check by emails
-    const existingByEmails = existingByIds ? null : await db.collection('conversations').findOne({
-      participantEmails: { $all: [session.user.email, receiverEmail || ''], $size: 2 }
-    });
+    // Strategy 2: Check by sorted participant emails (if receiverEmail provided)
+    let existingByEmails = null;
+    if (!existingByIds && receiverEmail) {
+      existingByEmails = await db.collection('conversations').findOne({
+        $or: [
+          // Exact match with sorted array
+          { participantEmails: { $eq: sortedParticipantEmails } },
+          // Both emails present and array size is 2
+          {
+            $and: [
+              { participantEmails: { $all: sortedParticipantEmails } },
+              { $expr: { $eq: [{ $size: '$participantEmails' }, 2] } }
+            ]
+          }
+        ]
+      });
+    }
 
-    const existing = existingByIds || existingByEmails;
+    // Strategy 3: Check all conversations and manually verify (fallback)
+    let existingManual = null;
+    if (!existingByIds && !existingByEmails) {
+      const allConvs = await db.collection('conversations')
+        .find({
+          $or: [
+            { participantIds: { $in: [userId, receiverUserId] } },
+            { participantEmails: { $in: [session.user.email, receiverEmail || ''] } }
+          ]
+        })
+        .toArray();
+      
+      // Manually check each conversation
+      for (const conv of allConvs) {
+        const convIds = (conv.participantIds || []).map(String).sort();
+        const convEmails = (conv.participantEmails || []).filter(Boolean).sort();
+        
+        // Check if this conversation matches
+        const idsMatch = convIds.length === 2 && 
+          convIds.includes(String(userId)) && 
+          convIds.includes(String(receiverUserId));
+        
+        const emailsMatch = receiverEmail && convEmails.length === 2 &&
+          convEmails.includes(session.user.email) &&
+          convEmails.includes(receiverEmail);
+        
+        if (idsMatch || emailsMatch) {
+          existingManual = conv;
+          break;
+        }
+      }
+    }
+
+    const existing = existingByIds || existingByEmails || existingManual;
 
     if (existing) {
       // Update product info if provided and not already set
@@ -83,9 +143,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Create new conversation
+    // Use the already sorted arrays from above
     const conversation = {
-      participantIds: [userId, receiverUserId],
-      participantEmails: [session.user.email, receiverEmail || ''],
+      participantIds: sortedParticipantIds,
+      participantEmails: sortedParticipantEmails,
       productId: productId || null,
       productTitle: productTitle || null,
       lastMessageAt: new Date(),

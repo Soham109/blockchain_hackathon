@@ -291,10 +291,35 @@ export function PaymentModal({
         throw new Error('Payment confirmation failed');
       }
     } catch (error: any) {
+      console.error('Payment error:', error);
+      
+      // Parse error message for user-friendly display
+      let errorTitle = "Payment Failed";
+      let errorDescription = error.message || "Please try again";
+      
+      // Handle specific error types
+      if (error.message?.includes('rejected') || error.message?.includes('User rejected')) {
+        errorTitle = "Transaction Rejected";
+        errorDescription = "You rejected the transaction in MetaMask. Please try again and click 'Confirm' when prompted.";
+      } else if (error.message?.includes('not been authorized') || error.message?.includes('authorized')) {
+        errorTitle = "Transaction Not Approved";
+        errorDescription = "Please approve the transaction in MetaMask. Make sure you click 'Confirm' when MetaMask prompts you.";
+      } else if (error.message?.includes('insufficient funds')) {
+        errorTitle = "Insufficient Funds";
+        errorDescription = "You don't have enough ETH in your wallet. Please add more funds and try again.";
+      } else if (error.message?.includes('Wallet not found') || error.message?.includes('not connected')) {
+        errorTitle = "Wallet Not Connected";
+        errorDescription = "Please connect your wallet (MetaMask) and try again.";
+      } else if (error.message?.includes('network')) {
+        errorTitle = "Network Error";
+        errorDescription = "There was a network issue. Please check your connection and try again.";
+      }
+      
       toast({
-        title: "Payment Failed",
-        description: error.message || "Please try again",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
+        duration: 5000, // Show for 5 seconds
       });
       setStep('select');
     } finally {

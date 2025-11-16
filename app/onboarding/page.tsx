@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,12 @@ export default function OnboardingPage() {
     form.append('file', file);
 
     try {
+      console.log('=== Frontend: Starting ID Upload ===');
+      console.log('User ID:', user?.id);
+      console.log('File name:', file.name);
+      console.log('File size:', file.size, 'bytes');
+      console.log('File type:', file.type);
+
       const resp = await fetch('/api/id/upload', {
         method: 'POST',
         body: form,
@@ -65,14 +71,25 @@ export default function OnboardingPage() {
         },
       });
 
+      console.log('Upload response status:', resp.status, resp.statusText);
+
       const data = await resp.json();
+      console.log('=== Frontend: Upload API Response ===');
+      console.log(JSON.stringify(data, null, 2));
+      console.log('Response status field:', data?.status);
+      console.log('Response parsed field:', data?.parsed);
+      console.log('Response ocrResult field:', data?.ocrResult);
+      console.log('Response rawModelText (first 500 chars):', data?.rawModelText?.substring(0, 500));
 
       if (resp.ok) {
         setUploadStatus('success');
         setLatestVerification(data);
         
+        console.log('Upload successful, verification status:', data?.status);
+        
         // If verified immediately, redirect
         if (data?.status === 'verified') {
+          console.log('Status is verified, redirecting to dashboard...');
           toast({
             title: "Verification Successful!",
             description: "Redirecting to dashboard...",
@@ -84,6 +101,7 @@ export default function OnboardingPage() {
             router.push('/dashboard');
           }, 1500);
         } else {
+          console.log('Status is pending, showing pending message');
           toast({
             title: "Upload Successful",
             description: "Your ID is being reviewed. We'll notify you when it's verified.",
@@ -119,13 +137,31 @@ export default function OnboardingPage() {
     }
   }
 
-  async function fetchLatest() {
+  const fetchLatest = useCallback(async () => {
+    if (!user?.id) {
+      console.warn('fetchLatest: No user ID available');
+      return;
+    }
+    
     try {
+      console.log('fetchLatest: Calling API with user ID:', user.id);
       const resp = await fetch('/api/id/latest', { 
         headers: { 'x-user-id': user.id } 
       });
+      
+      console.log('fetchLatest: Response status:', resp.status);
+      
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('fetchLatest: API error:', resp.status, errorData);
+        return;
+      }
+      
       const data = await resp.json();
-      if (resp.ok && data.verification) {
+      console.log('fetchLatest: Response data:', data);
+      
+      if (data.verification) {
+        console.log('fetchLatest: Setting verification status:', data.verification.status);
         setLatestVerification(data.verification);
         
         // If verified, redirect
@@ -141,21 +177,88 @@ export default function OnboardingPage() {
             router.push('/dashboard');
           }, 1500);
         }
+      } else {
+        console.warn('fetchLatest: No verification data in response');
       }
     } catch (e) {
-      // Ignore errors silently
+      console.error('fetchLatest: Exception:', e);
+      toast({
+        title: "Error checking status",
+        description: "Failed to fetch verification status. Please try refreshing.",
+        variant: "destructive",
+      });
     }
-  }
+  }, [user?.id, toast, update, router]);
 
   // Poll for verification status if pending
   useEffect(() => {
-    if (user?.id && !isStudentVerified && latestVerification?.status === 'pending') {
-      const interval = setInterval(() => {
-        fetchLatest();
-      }, 5000); // Check every 5 seconds
-      return () => clearInterval(interval);
+    if (!user?.id || isStudentVerified || latestVerification?.status !== 'pending') {
+      return;
     }
-  }, [user?.id, isStudentVerified, latestVerification?.status]);
+
+    console.log('Setting up polling interval for verification status');
+    
+    const checkStatus = async () => {
+      if (!user?.id) {
+        console.warn('checkStatus: No user ID available');
+        return;
+      }
+      
+      try {
+        console.log('Polling: Checking verification status...');
+        console.log('checkStatus: Calling API with user ID:', user.id);
+        const resp = await fetch('/api/id/latest', { 
+          headers: { 'x-user-id': user.id } 
+        });
+        
+        console.log('checkStatus: Response status:', resp.status);
+        
+        if (!resp.ok) {
+          const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('checkStatus: API error:', resp.status, errorData);
+          return;
+        }
+        
+        const data = await resp.json();
+        console.log('checkStatus: Response data:', data);
+        
+        if (data.verification) {
+          console.log('checkStatus: Setting verification status:', data.verification.status);
+          setLatestVerification(data.verification);
+          
+          // If verified, redirect
+          if (data.verification.status === 'verified') {
+            toast({
+              title: "Verification Complete!",
+              description: "Redirecting to dashboard...",
+            });
+            // Small delay to ensure database is updated
+            setTimeout(async () => {
+              // Refresh session to get updated user data
+              await update();
+              router.push('/dashboard');
+            }, 1500);
+          }
+        } else {
+          console.warn('checkStatus: No verification data in response');
+        }
+      } catch (e) {
+        console.error('checkStatus: Exception:', e);
+        toast({
+          title: "Error checking status",
+          description: "Failed to fetch verification status. Please try refreshing.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const interval = setInterval(checkStatus, 5000); // Check every 5 seconds
+    
+    return () => {
+      console.log('Clearing polling interval');
+      clearInterval(interval);
+    };
+  }, [user?.id, isStudentVerified, latestVerification?.status, toast, update, router]);
 
   // Fetch latest on mount
   useEffect(() => {

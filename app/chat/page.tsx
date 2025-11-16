@@ -30,6 +30,8 @@ function ChatContent() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUser, setOtherUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [conversationUsers, setConversationUsers] = useState<Map<string, any>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<string | null>(null);
 
@@ -135,11 +137,56 @@ function ChatContent() {
     }
   }
 
+  // Load current user profile for avatar
+  useEffect(() => {
+    async function loadCurrentUser() {
+      if (!session?.user?.email) return;
+      try {
+        const res = await fetch(`/api/users?email=${encodeURIComponent(session.user.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUser(data.user);
+        }
+      } catch (err) {
+        console.error('Failed to load current user', err);
+      }
+    }
+    if (session?.user) {
+      loadCurrentUser();
+    }
+  }, [session?.user?.email]);
+
   async function loadConversations() {
     try {
       const res = await fetch('/api/messages');
       const data = await res.json();
-      setConversations(data.conversations || []);
+      const convs = data.conversations || [];
+      setConversations(convs);
+      
+      // Load user data for all conversations
+      const userMap = new Map<string, any>();
+      const userEmail = (session?.user as any)?.email;
+      
+      await Promise.all(
+        convs.map(async (conv: any) => {
+          const otherEmail = conv.participantEmails?.find((e: string) => e !== userEmail);
+          if (otherEmail && otherEmail !== 'Unknown') {
+            try {
+              const userRes = await fetch(`/api/users?email=${encodeURIComponent(otherEmail)}`);
+              if (userRes.ok) {
+                const userData = await userRes.json();
+                if (userData.user) {
+                  userMap.set(otherEmail, userData.user);
+                }
+              }
+            } catch (err) {
+              console.error('Failed to load user for conversation', err);
+            }
+          }
+        })
+      );
+      
+      setConversationUsers(userMap);
       setLoading(false);
     } catch (err) {
       console.error('Failed to load conversations', err);
@@ -259,6 +306,7 @@ function ChatContent() {
         // Don't add to state immediately - let the polling handle it
         // This prevents duplicates
         setNewMessage('');
+        // Reload conversations to update last message
         loadConversations();
         // Reload messages after a short delay to get the new message
         shouldScrollRef.current = true;
@@ -296,15 +344,15 @@ function ChatContent() {
   const shouldShowContent = isVerified && status !== 'loading' && session?.user;
 
   // Always return the same structure
-  return (
+    return (
     <div className="h-screen pt-32 px-4 bg-background flex flex-col">
       {loading || isLoading ? (
         <div className="flex items-center justify-center flex-1">
-          <div className="space-y-4 w-full max-w-7xl">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-[600px] w-full" />
-          </div>
+        <div className="space-y-4 w-full max-w-7xl">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-[600px] w-full" />
         </div>
+      </div>
       ) : !shouldShowContent ? (
         <div className="flex items-center justify-center flex-1">
           <div className="text-center">
@@ -313,7 +361,7 @@ function ChatContent() {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Conversations List */}
           <Card className="w-80 flex-shrink-0 flex flex-col border-2 shadow-lg min-h-0">
@@ -334,6 +382,7 @@ function ChatContent() {
                 conversations.map((conv) => {
                   const otherEmail = getOtherParticipant(conv);
                   const isActive = activeConversation?._id === conv._id;
+                  const convUser = conversationUsers.get(otherEmail);
                   return (
                     <button
                       key={conv._id}
@@ -348,6 +397,7 @@ function ChatContent() {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-12 w-12 flex-shrink-0 border-2 border-primary/20">
+                          <AvatarImage src={convUser?.avatar} alt={otherEmail} />
                           <AvatarFallback className="text-base font-bold">
                             {otherEmail[0]?.toUpperCase() || <User size={16} />}
                           </AvatarFallback>
@@ -517,9 +567,9 @@ function ChatContent() {
                             </div>
                             {isOwn && (
                               <Avatar className="h-9 w-9 flex-shrink-0 border-2 border-primary/20 shadow-sm">
-                                <AvatarImage src={(session?.user as any)?.avatar} />
+                                <AvatarImage src={currentUser?.avatar || (session?.user as any)?.image} />
                                 <AvatarFallback className="text-xs font-bold">
-                                  {(session?.user as any)?.email[0]?.toUpperCase()}
+                                  {(session?.user as any)?.email?.[0]?.toUpperCase() || <User size={12} />}
                                 </AvatarFallback>
                               </Avatar>
                             )}
@@ -558,7 +608,7 @@ function ChatContent() {
             )}
           </Card>
         </div>
-        </div>
+      </div>
       )}
     </div>
   );

@@ -138,7 +138,7 @@ function BrowseContent() {
     <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
       {isLoading || loading ? (
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => (
               <Card key={i} className="border">
                 <CardContent className="p-0">
@@ -161,12 +161,12 @@ function BrowseContent() {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8 pt-4">
-          <div className="flex items-center justify-between mb-6">
+        <div className="pt-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">
+              <h1 className="text-5xl md:text-6xl font-bold mb-2 tracking-tight text-center md:text-left">
                 <span className="text-blue-500 dark:text-cyan-400">Browse</span>{' '}
                 <span>Marketplace</span>
               </h1>
@@ -203,7 +203,7 @@ function BrowseContent() {
           </div>
           
           {/* Search and Filter Bar */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -317,30 +317,32 @@ function BrowseContent() {
         </div>
 
         {/* Products Grid */}
-        {products.length === 0 ? (
-          <Card className="text-center py-16 border shadow-sm">
-            <CardContent>
-              <Package size={64} className="mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-2xl font-bold mb-2">No products found</h3>
-              <p className="text-muted-foreground mb-6">
-                Try adjusting your search or filters
-              </p>
-              <Button onClick={() => {
-                setSearchQuery('');
-                setFilter('all');
-                setPriceRange({ min: '', max: '' });
-              }} className="shadow-sm hover:shadow-md transition-shadow">
-                Clear All Filters
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard key={product._id} product={product} userLocation={userLocation} />
-            ))}
-          </div>
-        )}
+        <div className="mt-4">
+          {products.length === 0 ? (
+            <Card className="text-center py-16 border shadow-sm">
+              <CardContent>
+                <Package size={64} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-2xl font-bold mb-2">No products found</h3>
+                <p className="text-muted-foreground mb-6">
+                  Try adjusting your search or filters
+                </p>
+                <Button onClick={() => {
+                  setSearchQuery('');
+                  setFilter('all');
+                  setPriceRange({ min: '', max: '' });
+                }} className="shadow-sm hover:shadow-md transition-shadow">
+                  Clear All Filters
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {products.map((product) => (
+                <ProductCard key={product._id} product={product} userLocation={userLocation} />
+              ))}
+            </div>
+          )}
+        </div>
         </div>
       )}
     </div>
