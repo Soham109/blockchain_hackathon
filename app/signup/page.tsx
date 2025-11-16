@@ -83,21 +83,25 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-flex items-center gap-2 mb-3">
             <div className="h-10 w-10 rounded-lg bg-foreground flex items-center justify-center">
               <ShoppingBag className="h-5 w-5 text-background" />
             </div>
             <span className="font-bold text-2xl">UniMarket</span>
           </Link>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 tracking-tight">
+            <span className="text-blue-500 dark:text-cyan-400">Create</span>{' '}
+            <span>Account</span>
+          </h1>
           <p className="text-muted-foreground">Join the student marketplace</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2 mb-6">
+        <div className="flex items-center justify-center gap-2 mb-4">
           <div className={`flex items-center gap-2 ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
             <div className={`h-8 w-8 rounded-full flex items-center justify-center border-2 ${
               step >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'
@@ -127,16 +131,15 @@ export default function SignUpPage() {
         </div>
 
         <Card className="border-2">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+          <CardHeader className="space-y-1 pb-4">
             <CardDescription>
               {step === 1 && 'Start by creating your account'}
               {step === 2 && 'Verify your email to continue'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {step === 1 && (
-              <form onSubmit={register} className="space-y-4">
+              <form onSubmit={register} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="role">I want to</Label>
                   <Select value={role} onValueChange={(v) => setRole(v as any)}>

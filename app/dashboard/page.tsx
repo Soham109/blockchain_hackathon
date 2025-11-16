@@ -12,7 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ConnectWallet } from '../components/ConnectWallet';
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [userStats, setUserStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -229,7 +229,15 @@ export default function DashboardPage() {
                         Unlock selling features by uploading your ID.
                       </CardDescription>
                       <Link href="/onboarding">
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={async () => {
+                            // Refresh session before navigating to ensure latest data
+                            await update();
+                          }}
+                        >
                           Upload ID
                         </Button>
                       </Link>

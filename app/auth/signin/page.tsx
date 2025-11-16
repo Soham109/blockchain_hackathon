@@ -102,27 +102,30 @@ function SignInContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-flex items-center gap-2 mb-3">
             <div className="h-10 w-10 rounded-lg bg-foreground flex items-center justify-center">
               <ShoppingBag className="h-5 w-5 text-background" />
             </div>
             <span className="font-bold text-2xl">UniMarket</span>
           </Link>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 tracking-tight">
+            <span className="text-blue-500 dark:text-cyan-400">Sign</span>{' '}
+            <span>In</span>
+          </h1>
           <p className="text-muted-foreground">Welcome back to your student marketplace</p>
         </div>
 
         <Card className="border-2">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
+          <CardHeader className="space-y-1 pb-4">
             <CardDescription>
               Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {showVerified && (
               <Alert className="mb-4 border-emerald-500/50 bg-emerald-500/20">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -132,7 +135,7 @@ function SignInContent() {
               </Alert>
             )}
             
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">

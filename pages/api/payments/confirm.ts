@@ -22,7 +22,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (type === 'boost') {
       // Handle product boosting
       const { ObjectId } = require('mongodb');
-      const productObjectId = typeof productId === 'string' ? new ObjectId(productId) : productId;
+      // Validate productId before creating ObjectId
+      let productObjectId;
+      if (typeof productId === 'string' && productId.length === 24 && /^[0-9a-fA-F]{24}$/.test(productId)) {
+        productObjectId = new ObjectId(productId);
+      } else if (productId instanceof ObjectId) {
+        productObjectId = productId;
+      } else {
+        return res.status(400).json({ error: 'Invalid productId format' });
+      }
       
       // Get current product to merge keywords if already boosted
       const product = await db.collection('products').findOne({ _id: productObjectId });
@@ -110,14 +118,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Mark product as sold
     const { ObjectId } = require('mongodb');
-    const productObjectId = typeof productId === 'string' ? new ObjectId(productId) : productId;
+    // Validate productId before creating ObjectId
+    let productObjectId;
+    if (typeof productId === 'string' && productId.length === 24 && /^[0-9a-fA-F]{24}$/.test(productId)) {
+      productObjectId = new ObjectId(productId);
+    } else if (productId instanceof ObjectId) {
+      productObjectId = productId;
+    } else {
+      return res.status(400).json({ error: 'Invalid productId format for purchase' });
+    }
+    
     await db.collection('products').updateOne(
       { _id: productObjectId },
       { $set: { status: 'sold', soldAt: new Date() } }
     );
 
     // Create notification for seller
-    const product = await db.collection('products').findOne({ _id: productId });
+    const product = await db.collection('products').findOne({ _id: productObjectId });
     if (product) {
       await db.collection('notifications').insertOne({
         userId: product.sellerId,

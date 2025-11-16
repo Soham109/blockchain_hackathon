@@ -149,8 +149,6 @@ export default function Navbar() {
     }
   }
 
-  if (pathname?.includes('/auth/') || pathname === '/signup' || pathname === '/verify-email') return null;
-
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -165,9 +163,14 @@ export default function Navbar() {
     { href: '/wishlist', label: 'Wishlist', icon: Heart, path: '/wishlist' },
   ];
 
+  // Hide navbar on auth pages
+  if (pathname?.includes('/auth/') || pathname === '/signup' || pathname === '/verify-email') {
+    return null;
+  }
+
   return (
-    <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl rounded-2xl border-2 bg-background shadow-lg transition-all duration-300 ${
-      scrolled ? 'shadow-2xl' : ''
+    <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300 ${
+      scrolled ? 'shadow-2xl bg-background/90' : ''
     }`}>
       <div className="flex h-16 items-center px-4 md:px-6">
         {/* Logo */}
@@ -185,30 +188,46 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-1 mr-6">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.path;
+              const isActive = pathname === item.path || (item.path === '/dashboard' && pathname === '/');
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? 'default' : 'ghost'}
-                    size="sm"
-                    className="cursor-pointer"
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </Button>
+                <Link key={item.href} href={item.href} className="relative group">
+                  <div className="relative">
+                    {/* Background block for hover and active */}
+                    <div className={`absolute inset-0 rounded-lg transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-muted' 
+                        : 'bg-muted/0 group-hover:bg-muted/50'
+                    }`} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="cursor-pointer relative h-9 px-3 z-10"
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      {item.label}
+                    </Button>
+                  </div>
                 </Link>
               );
             })}
             {user?.role === 'seller' && (
-              <Link href="/seller/dashboard">
-                <Button
-                  variant={pathname?.startsWith('/seller') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="cursor-pointer"
-                >
-                  <Store className="h-4 w-4 mr-2" />
-                  My Shop
-                </Button>
+              <Link href="/seller/dashboard" className="relative group">
+                <div className="relative">
+                  {/* Background block for hover and active */}
+                  <div className={`absolute inset-0 rounded-lg transition-all duration-200 ${
+                    pathname?.startsWith('/seller')
+                      ? 'bg-muted' 
+                      : 'bg-muted/0 group-hover:bg-muted/50'
+                  }`} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="cursor-pointer relative h-9 px-3 z-10"
+                  >
+                    <Store className="h-4 w-4 mr-2" />
+                    My Shop
+                  </Button>
+                </div>
               </Link>
             )}
           </div>
@@ -375,7 +394,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && session?.user && (
-        <div className="md:hidden border-t-2 bg-background rounded-b-2xl">
+        <div className="md:hidden border-t-2 bg-background/80 backdrop-blur-xl rounded-b-2xl">
           <div className="px-4 py-3 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

@@ -10,10 +10,11 @@ import { Upload, CheckCircle2, Clock, AlertCircle, ArrowRight } from 'lucide-rea
 import { useToast } from '@/components/ui/use-toast';
 
 export default function OnboardingPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [latestVerification, setLatestVerification] = useState<any>(null);
@@ -41,11 +42,12 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (isStudentVerified && !isRedirecting) {
       setIsRedirecting(true);
-      setTimeout(() => {
+      setTimeout(async () => {
+        await update();
         router.push('/dashboard');
       }, 2000);
     }
-  }, [isStudentVerified, router, isRedirecting]);
+  }, [isStudentVerified, router, isRedirecting, update]);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +86,7 @@ export default function OnboardingPage() {
           // Update session to reflect verification
           setTimeout(async () => {
             // Refresh session to get updated user data
-            await fetch('/api/auth/session', { method: 'GET' });
+            await update();
             router.push('/dashboard');
           }, 1500);
         } else {
@@ -140,8 +142,9 @@ export default function OnboardingPage() {
           });
           // Small delay to ensure database is updated
           setTimeout(async () => {
-            // Refresh to get updated session
-            window.location.href = '/dashboard';
+            // Refresh session to get updated user data
+            await update();
+            router.push('/dashboard');
           }, 1500);
         }
       }
@@ -168,19 +171,22 @@ export default function OnboardingPage() {
   }, [user?.id, isStudentVerified]);
 
   return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+    <div className="min-h-screen pt-28 pb-8 px-4 bg-background">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Badge className="mb-4 px-4 py-1.5 text-sm">Step 2: Complete Verification</Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">Verify Your Student ID</h1>
-          <p className="text-muted-foreground text-lg">
+        <div className="text-center mb-6">
+          <Badge className="mb-3 px-4 py-1.5 text-sm">Step 2: Complete Verification</Badge>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 tracking-tight">
+            <span className="text-blue-500 dark:text-cyan-400">Verify</span>{' '}
+            <span>Your Student ID</span>
+          </h1>
+          <p className="text-muted-foreground text-base">
             Upload a clear photo of your student ID to unlock full marketplace access
           </p>
         </div>
 
         {/* Status Indicator */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <Card className="border-2 border-green-500/30 bg-green-500/10">
             <CardContent className="p-4 text-center">
               <div className="w-12 h-12 bg-green-500/20 border-2 border-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -240,43 +246,80 @@ export default function OnboardingPage() {
 
         {/* Upload Form */}
         {!isStudentVerified && (
-          <Card className="border-2 shadow-lg mb-6">
-            <CardHeader>
-              <CardTitle className="text-2xl">Upload Student ID Photo</CardTitle>
+          <Card className="border-2 shadow-lg mb-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl">Upload Student ID Photo</CardTitle>
             </CardHeader>
-            <CardContent>
-            <form onSubmit={handleUpload} className="space-y-6">
+            <CardContent className="pt-0">
+            <form onSubmit={handleUpload} className="space-y-4">
               {/* File Input */}
               <div>
-                <label className="block text-sm font-medium mb-3">Student ID Photo</label>
-                  <label className="flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted">
+                <label className="block text-sm font-medium mb-2">Student ID Photo</label>
+                  <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted min-h-[160px]">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
-                      setFile(e.target.files?.[0] || null);
+                      const selectedFile = e.target.files?.[0] || null;
+                      setFile(selectedFile);
                       setErrorMsg('');
+                      if (selectedFile) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setPreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(selectedFile);
+                      } else {
+                        setPreview(null);
+                      }
                     }}
                     className="hidden"
                       disabled={uploadStatus === 'uploading'}
                   />
-                  <div className="text-center">
-                      <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                      <p className="font-medium">
-                        {file ? file.name : 'Click to upload or drag and drop'}
+                  {preview ? (
+                    <div className="space-y-3">
+                      <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-primary">
+                        <img 
+                          src={preview} 
+                          alt="Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium text-sm">{file?.name}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setFile(null);
+                            setPreview(null);
+                          }}
+                          className="mt-2"
+                        >
+                          Change Image
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+                      <p className="font-medium text-sm">
+                        Click to upload or drag and drop
                       </p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         PNG, JPG, or WebP up to 10MB
                       </p>
-                  </div>
+                    </div>
+                  )}
                 </label>
               </div>
 
               {/* Instructions */}
                 <Card className="bg-muted border-2">
-                  <CardContent className="p-4">
-                <p className="text-sm font-medium mb-2">📋 Requirements:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <CardContent className="p-3">
+                <p className="text-xs font-medium mb-1.5">📋 Requirements:</p>
+                    <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
                       <li>Clear, well-lit photo of your student ID</li>
                       <li>All text must be legible</li>
                       <li>Show front side clearly</li>
@@ -299,7 +342,7 @@ export default function OnboardingPage() {
               <Button
                 type="submit"
                 disabled={!file || uploadStatus === 'uploading'}
-                  className="w-full h-12 text-base font-semibold"
+                  className="w-full h-11 text-sm font-semibold"
                   size="lg"
               >
                 {uploadStatus === 'uploading' ? (

@@ -454,7 +454,41 @@ function ChatContent() {
                                     : 'bg-muted border border-border/50'
                                 }`}
                               >
-                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                {/* Extract and display images from content */}
+                                {(() => {
+                                  const imageUrlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|bmp|svg))/gi;
+                                  const imageMatches = msg.content?.match(imageUrlRegex) || [];
+                                  const imageUrl = msg.imageUrl || imageMatches[0];
+                                  const textContent = msg.content?.replace(imageUrlRegex, '').trim() || '';
+                                  
+                                  return (
+                                    <>
+                                      {/* Display image if found */}
+                                      {imageUrl && (
+                                        <div className="mb-2 rounded-lg overflow-hidden max-w-full">
+                                          <img 
+                                            src={imageUrl} 
+                                            alt="Message attachment" 
+                                            className="max-w-full max-h-64 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(imageUrl, '_blank')}
+                                            onError={(e) => {
+                                              // Hide image on error
+                                              (e.target as HTMLImageElement).style.display = 'none';
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                      {/* Display text content if it exists and is not just an image URL */}
+                                      {textContent && (
+                                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{textContent}</p>
+                                      )}
+                                      {/* If message is only an image URL, show indicator */}
+                                      {!textContent && imageUrl && (
+                                        <span className="text-xs opacity-70">📷 Image</span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                               <p className="text-xs text-muted-foreground mt-1.5 px-1.5 opacity-70">
                                 {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

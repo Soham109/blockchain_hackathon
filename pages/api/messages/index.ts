@@ -56,16 +56,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Cannot message yourself' });
     }
 
-    // Check if conversation already exists
-    const existing = await db.collection('conversations').findOne({
-      $or: [
-        { participantIds: { $all: [userId, receiverUserId] } },
-        { participantEmails: { $all: [session.user.email, receiverEmail || ''] } }
-      ],
-      ...(productId && { productId })
+    // Check if conversation already exists between these two users
+    // First check by participant IDs (most reliable)
+    const existingByIds = await db.collection('conversations').findOne({
+      participantIds: { $all: [userId, receiverUserId], $size: 2 }
     });
 
+    // If not found by IDs, check by emails
+    const existingByEmails = existingByIds ? null : await db.collection('conversations').findOne({
+      participantEmails: { $all: [session.user.email, receiverEmail || ''], $size: 2 }
+    });
+
+    const existing = existingByIds || existingByEmails;
+
     if (existing) {
+      // Update product info if provided and not already set
+      if (productId && !existing.productId) {
+        await db.collection('conversations').updateOne(
+          { _id: existing._id },
+          { $set: { productId, productTitle: productTitle || null } }
+        );
+        existing.productId = productId;
+        existing.productTitle = productTitle || null;
+      }
       return res.status(200).json({ conversation: existing });
     }
 
