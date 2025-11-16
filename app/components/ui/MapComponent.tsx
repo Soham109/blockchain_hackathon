@@ -4,6 +4,28 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+// Fix Leaflet z-index to ensure it doesn't appear above navbar (z-50)
+if (typeof window !== 'undefined' && !document.getElementById('leaflet-z-index-fix')) {
+  const style = document.createElement('style');
+  style.id = 'leaflet-z-index-fix';
+  style.textContent = `
+    .leaflet-container {
+      z-index: 0 !important;
+    }
+    .leaflet-control-container {
+      z-index: 1 !important;
+    }
+    .leaflet-popup {
+      z-index: 10 !important;
+    }
+    .leaflet-top,
+    .leaflet-bottom {
+      z-index: 1 !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Fix for default marker icon in Next.js
 if (typeof window !== 'undefined') {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -47,7 +69,7 @@ export default function MapComponent({ center, zoom, currentLocation, onLocation
     <MapContainer
       center={center}
       zoom={zoom}
-      style={{ height: '100%', width: '100%' }}
+      style={{ height: '100%', width: '100%', zIndex: 0 }}
       scrollWheelZoom={true}
       key={`${center[0]}-${center[1]}`}
     >
