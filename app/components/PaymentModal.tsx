@@ -121,7 +121,7 @@ export function PaymentModal({
         if (!isConnected || !address) {
           toast({
             title: "Wallet Not Connected",
-            description: "Please connect your wallet (MetaMask or Gemini) first",
+            description: "Please connect your wallet (MetaMask or Gemini Wallet) first",
             variant: "destructive",
           });
           setStep('select');
@@ -131,8 +131,12 @@ export function PaymentModal({
 
         toast({
           title: "Processing Payment",
-          description: "Please confirm the transaction in your wallet",
+          description: "Please confirm the transaction in your wallet (MetaMask or Gemini Wallet). Make sure to click 'Confirm' when prompted.",
+          duration: 5000,
         });
+
+        // Small delay to ensure toast is visible
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Send real Arbitrum transaction
         transactionHash = await sendArbitrumPayment({
@@ -162,8 +166,12 @@ export function PaymentModal({
         const calculatedSolAmount = await convertEthToSol(amount);
         toast({
           title: "Processing Payment",
-          description: `Sending ${calculatedSolAmount} SOL...`,
+          description: `Sending ${calculatedSolAmount} SOL... Please confirm in Phantom wallet.`,
+          duration: 5000,
         });
+
+        // Small delay to ensure toast is visible
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Send real Solana transaction (conversion happens inside sendSolanaPayment)
         transactionHash = await sendSolanaPayment(
@@ -186,29 +194,54 @@ export function PaymentModal({
       // Move to verification step
       setStep('verifying');
 
-      // Verify transaction on backend
-      const verifyRes = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txHash: transactionHash,
-          paymentId,
-          productId: product._id,
-          amount,
-          paymentMethod,
-          type,
-          boostKeywords: type === 'boost' ? boostKeywords : undefined,
-        }),
-      });
+      // Wait a bit for transaction to be mined
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      if (!verifyRes.ok) {
-        throw new Error('Transaction verification failed');
+      // Verify transaction on backend with retry logic
+      let verified = false;
+      let retries = 0;
+      const maxRetries = 5;
+      
+      while (!verified && retries < maxRetries) {
+        try {
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              txHash: transactionHash,
+              paymentId,
+              productId: product._id,
+              amount,
+              paymentMethod,
+              type,
+              boostKeywords: type === 'boost' ? boostKeywords : undefined,
+            }),
+          });
+
+          if (verifyRes.ok) {
+            const verifyData = await verifyRes.json();
+            if (verifyData.verified) {
+              verified = true;
+              break;
+            }
+          }
+          
+          // If not verified, wait and retry
+          if (retries < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+          retries++;
+        } catch (verifyError) {
+          console.error('Verification attempt failed:', verifyError);
+          if (retries < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+          retries++;
+        }
       }
 
-      const verifyData = await verifyRes.json();
-      
-      if (!verifyData.verified) {
-        throw new Error('Transaction not confirmed on blockchain');
+      if (!verified) {
+        throw new Error('Transaction verification timed out. The transaction may still be processing. Please check your wallet and try again later.');
       }
 
       // Confirm payment on backend
@@ -300,16 +333,16 @@ export function PaymentModal({
       // Handle specific error types
       if (error.message?.includes('rejected') || error.message?.includes('User rejected')) {
         errorTitle = "Transaction Rejected";
-        errorDescription = "You rejected the transaction in MetaMask. Please try again and click 'Confirm' when prompted.";
+        errorDescription = "You rejected the transaction in your wallet. Please try again and click 'Confirm' when prompted.";
       } else if (error.message?.includes('not been authorized') || error.message?.includes('authorized')) {
         errorTitle = "Transaction Not Approved";
-        errorDescription = "Please approve the transaction in MetaMask. Make sure you click 'Confirm' when MetaMask prompts you.";
+        errorDescription = "Please approve the transaction in your wallet (MetaMask or Gemini Wallet). Make sure you click 'Confirm' when prompted.";
       } else if (error.message?.includes('insufficient funds')) {
         errorTitle = "Insufficient Funds";
         errorDescription = "You don't have enough ETH in your wallet. Please add more funds and try again.";
       } else if (error.message?.includes('Wallet not found') || error.message?.includes('not connected')) {
         errorTitle = "Wallet Not Connected";
-        errorDescription = "Please connect your wallet (MetaMask) and try again.";
+        errorDescription = "Please connect your wallet (MetaMask or Gemini Wallet) and try again.";
       } else if (error.message?.includes('network')) {
         errorTitle = "Network Error";
         errorDescription = "There was a network issue. Please check your connection and try again.";
@@ -329,7 +362,7 @@ export function PaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-background border-2 shadow-2xl text-foreground" style={{ backgroundColor: 'hsl(var(--background))' }}>
+      <DialogContent className="sm:max-w-md bg-white text-black border-2 shadow-2xl">
         {step === 'select' && (
           <>
             <DialogHeader>
@@ -348,7 +381,7 @@ export function PaymentModal({
                 <TabsTrigger value="sol" className="cursor-pointer">Solana (SOL)</TabsTrigger>
               </TabsList>
               <TabsContent value="eth" className="space-y-4">
-                <div className="p-4 border-2 rounded-lg bg-muted">
+                <div className="p-4 border-2 rounded-lg bg-white">
                   <div className="flex items-center gap-2 mb-3">
                     <Wallet className="h-5 w-5 text-primary" />
                     <span className="font-semibold">Arbitrum Network (Local)</span>
@@ -359,23 +392,23 @@ export function PaymentModal({
                         <div className="h-2 w-2 rounded-full bg-green-500"></div>
                         <span className="text-sm font-medium">Wallet Connected</span>
                       </div>
-                      <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
+                      <div className="text-xs text-gray-600 font-mono bg-white p-2 rounded border border-gray-300">
                         {address?.slice(0, 8)}...{address?.slice(-6)}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
-                      Please connect your wallet (MetaMask or Gemini) to continue
+                    <div className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-300">
+                      Please connect your wallet (MetaMask or Gemini Wallet) to continue
                     </div>
                   )}
-                  <div className="mt-4 p-3 bg-background rounded-lg border">
+                  <div className="mt-4 p-3 bg-white rounded-lg border border-gray-300">
                     <div className="text-xs text-muted-foreground mb-1">Amount</div>
                     <div className="text-2xl font-bold">{amount} ETH</div>
                   </div>
                 </div>
               </TabsContent>
               <TabsContent value="sol" className="space-y-4">
-                <div className="p-4 border-2 rounded-lg bg-muted">
+                <div className="p-4 border-2 rounded-lg bg-white">
                   <div className="flex items-center gap-2 mb-3">
                     <Wallet className="h-5 w-5 text-primary" />
                     <span className="font-semibold">Solana Network (Local)</span>
@@ -386,16 +419,16 @@ export function PaymentModal({
                         <div className="h-2 w-2 rounded-full bg-green-500"></div>
                         <span className="text-sm font-medium">Phantom Connected</span>
                       </div>
-                      <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
+                      <div className="text-xs text-gray-600 font-mono bg-white p-2 rounded border border-gray-300">
                         {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-6)}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
+                    <div className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-300">
                       Connect Phantom wallet to continue
                     </div>
                   )}
-                  <div className="mt-4 p-3 bg-background rounded-lg border">
+                  <div className="mt-4 p-3 bg-white rounded-lg border border-gray-300">
                     <div className="text-xs text-muted-foreground mb-1">Amount</div>
                     <div className="text-2xl font-bold">{solAmount} SOL</div>
                   </div>

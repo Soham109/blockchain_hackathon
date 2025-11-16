@@ -108,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dataUrl = `data:${mime};base64,${base64}`;
 
     const payload = {
-      model: process.env.OPENROUTER_MODEL,
+      model: 'openai/gpt-5.1-codex-mini',
       messages: [
         {
           role: 'user',
@@ -172,13 +172,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Parse model response
     console.log('=== Parsing OpenRouter Response ===');
-    const rawContent = jsonResp?.choices?.[0]?.message?.content;
+    const message = jsonResp?.choices?.[0]?.message || {};
+    const rawContent = message.content;
+    
     console.log('Raw content type:', typeof rawContent);
     console.log('Raw content (first 500 chars):', typeof rawContent === 'string' ? rawContent.substring(0, 500) : rawContent);
     
     let modelRawText: string | null = null;
     let ocrResult: any = null;
 
+    // Only use content field, ignore reasoning to prevent leaks
     if (Array.isArray(rawContent)) {
       console.log('Content is array, length:', rawContent.length);
       const t = rawContent.find((c: any) => c?.type === 'text' || c?.text || c?.content);
@@ -186,22 +189,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         modelRawText = t.text || t.content || (typeof t === 'string' ? t : null);
         console.log('Found text in array:', modelRawText?.substring(0, 200));
       }
-    } else if (typeof rawContent === 'string') {
+    } else if (typeof rawContent === 'string' && rawContent.trim()) {
       modelRawText = rawContent;
       console.log('Content is string, length:', modelRawText.length);
     }
 
     if (modelRawText) {
       console.log('Model raw text (first 500 chars):', modelRawText.substring(0, 500));
-      // sanitize
+      // sanitize - remove markdown code blocks
       const cleaned = modelRawText.replace(/```(?:json)?\n?/gi, '').replace(/```/g, '').trim();
       console.log('Cleaned text (first 500 chars):', cleaned.substring(0, 500));
       
+      // Try to parse as JSON
       try { 
         ocrResult = JSON.parse(cleaned);
         console.log('Successfully parsed JSON:', JSON.stringify(ocrResult, null, 2));
       } catch (parseError) {
         console.warn('JSON parse failed, trying to extract JSON from text:', parseError);
+        // Try to find JSON object in the text
         const first = modelRawText.indexOf('{');
         const last = modelRawText.lastIndexOf('}');
         if (first !== -1 && last !== -1 && last > first) {
@@ -215,6 +220,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       }
+      
       if (!ocrResult) {
         console.warn('No OCR result parsed, using raw text');
         ocrResult = { text: modelRawText };
@@ -263,9 +269,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Update user
     if (isVerified) {
       console.log('Updating user as verified...');
+      const updateData: any = { 
+        studentId: normalized.student_id, 
+        studentVerified: true, 
+        verificationDate: new Date() 
+      };
+      
+      // Save name from ID verification if available
+      if (normalized.name) {
+        updateData.name = normalized.name;
+        console.log('Saving name from ID verification:', normalized.name);
+      }
+      
       await db.collection('users').updateOne(
         { _id: new ObjectId(userId) },
-        { $set: { studentId: normalized.student_id, studentVerified: true, verificationDate: new Date() } }
+        { $set: updateData }
       );
       console.log('User updated successfully');
     }

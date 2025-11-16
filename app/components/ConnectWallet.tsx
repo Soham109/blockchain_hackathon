@@ -94,32 +94,35 @@ export function ConnectWallet() {
           {isConnected || publicKey ? 'Wallet Connected' : 'Connect Wallet'}
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-background border-2 shadow-2xl text-foreground max-w-md" style={{ backgroundColor: 'hsl(var(--background))' }}>
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="text-2xl font-bold text-center">Connect Wallet</DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground">
+      <DialogContent className="sm:max-w-md border-2 shadow-2xl bg-white text-black">
+        <DialogHeader className="pb-4 border-b">
+          <DialogTitle className="text-xl font-bold">Connect Wallet</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mt-2">
             Choose a wallet to connect for payments. You'll need this to make purchases and pay listing fees.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4">
+        <div className="mt-6">
           <Tabs defaultValue="eth" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="eth" className="cursor-pointer font-medium">Arbitrum (ETH)</TabsTrigger>
-              <TabsTrigger value="sol" className="cursor-pointer font-medium">Solana (SOL)</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
+              <TabsTrigger value="eth" className="cursor-pointer font-medium data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-gray-700">Arbitrum (ETH)</TabsTrigger>
+              <TabsTrigger value="sol" className="cursor-pointer font-medium data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-gray-700">Solana (SOL)</TabsTrigger>
             </TabsList>
-            <TabsContent value="eth" className="space-y-3 mt-4">
+            <TabsContent value="eth" className="space-y-4 mt-6">
               {isConnected ? (
-                <div className="p-5 border-2 rounded-xl bg-muted border-green-500/50">
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                <div className="p-5 border-2 rounded-lg bg-white border-green-500/30">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                    <p className="text-sm font-semibold text-green-700">
                       Connected to Arbitrum ({connector?.name || 'Wallet'})
                     </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-4 break-all font-mono bg-background p-3 rounded-lg border-2">
-                    {address}
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => disconnect()} className="w-full cursor-pointer border-2">
+                  <div className="mb-4 p-3 rounded-lg bg-white border border-gray-300">
+                    <p className="text-xs text-gray-600 mb-1 font-medium">Wallet Address</p>
+                    <p className="text-xs text-black break-all font-mono">
+                      {address}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => disconnect()} className="w-full cursor-pointer border-2 hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive transition-colors">
                     Disconnect
                   </Button>
                 </div>
@@ -127,33 +130,57 @@ export function ConnectWallet() {
                 <div className="space-y-3">
                   {connectors
                     .filter((connector) => {
+                      const id = connector.id.toLowerCase();
                       const name = connector.name.toLowerCase();
-                      // Show MetaMask first, then injected wallets (Gemini)
-                      return name.includes('metamask') || name.includes('injected') || name.includes('browser');
+                      // Show Gemini, MetaMask, and injected wallets
+                      return id === 'gemini' || name.includes('metamask') || name.includes('injected') || name.includes('browser');
+                    })
+                    .sort((a, b) => {
+                      // Sort: Gemini first, then MetaMask, then others
+                      const aId = a.id.toLowerCase();
+                      const bId = b.id.toLowerCase();
+                      const aName = a.name.toLowerCase();
+                      const bName = b.name.toLowerCase();
+                      
+                      if (aId === 'gemini') return -1;
+                      if (bId === 'gemini') return 1;
+                      if (aName.includes('metamask')) return -1;
+                      if (bName.includes('metamask')) return 1;
+                      return 0;
                     })
                     .map((connector) => {
+                      const id = connector.id.toLowerCase();
                       const name = connector.name.toLowerCase();
-                      const isMetaMask = name.includes('metamask');
-                      const isGemini = typeof window !== 'undefined' && 
+                      const isGemini = id === 'gemini';
+                      const isMetaMask = name.includes('metamask') && !isGemini;
+                      const isInjected = name.includes('injected') || name.includes('browser');
+                      
+                      // Check if Gemini is available via window.ethereum
+                      const geminiAvailable = typeof window !== 'undefined' && 
                         window.ethereum && 
                         (window.ethereum.isGemini || window.ethereum.providers?.some((p: any) => p.isGemini));
                       
                       let displayName = 'Browser Wallet';
-                      if (isMetaMask) {
-                        displayName = 'MetaMask';
-                      } else if (isGemini) {
+                      if (isGemini) {
                         displayName = 'Gemini Wallet';
+                      } else if (isMetaMask) {
+                        displayName = 'MetaMask';
+                      } else if (isInjected && geminiAvailable) {
+                        displayName = 'Gemini Wallet (Injected)';
                       }
                       
                       return (
                         <Button
                           key={connector.uid}
                           variant="outline"
-                          className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary transition-all shadow-sm hover:shadow-md"
+                          className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-gray-100 hover:border-primary/50 transition-all shadow-sm hover:shadow-md bg-white text-black"
                           onClick={() => connect({ connector })}
                         >
                           <Wallet className="mr-3 h-5 w-5" />
                           <span className="font-medium">{displayName}</span>
+                          {isGemini && (
+                            <span className="ml-auto text-xs text-muted-foreground">(Production Ready)</span>
+                          )}
                           {isMetaMask && (
                             <span className="ml-auto text-xs text-muted-foreground">(Recommended for testing)</span>
                           )}
@@ -161,35 +188,39 @@ export function ConnectWallet() {
                       );
                     })}
                   {connectors.filter((c) => {
+                    const id = c.id.toLowerCase();
                     const name = c.name.toLowerCase();
-                    return name.includes('metamask') || name.includes('injected') || name.includes('browser');
+                    return id === 'gemini' || name.includes('metamask') || name.includes('injected') || name.includes('browser');
                   }).length === 0 && (
-                    <div className="p-4 border-2 rounded-lg bg-muted text-center">
-                      <p className="text-sm text-muted-foreground mb-2">No wallet detected</p>
-                      <p className="text-xs text-muted-foreground">Please install MetaMask or Gemini Wallet extension</p>
+                    <div className="p-4 border-2 rounded-lg bg-white border-gray-300 text-center">
+                      <p className="text-sm text-black mb-2 font-medium">No wallet detected</p>
+                      <p className="text-xs text-gray-600">Please install MetaMask or Gemini Wallet extension</p>
                     </div>
                   )}
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="sol" className="space-y-3 mt-4">
+            <TabsContent value="sol" className="space-y-4 mt-6">
               {publicKey ? (
-                <div className="p-5 border-2 rounded-xl bg-muted border-green-500/50">
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">Connected to Solana</p>
+                <div className="p-5 border-2 rounded-lg bg-white border-green-500/30">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                    <p className="text-sm font-semibold text-green-700">Connected to Solana</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-4 break-all font-mono bg-background p-3 rounded-lg border-2">
-                    {publicKey.toString()}
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => disconnectSolana()} className="w-full cursor-pointer border-2">
+                  <div className="mb-4 p-3 rounded-lg bg-white border border-gray-300">
+                    <p className="text-xs text-gray-600 mb-1 font-medium">Wallet Address</p>
+                    <p className="text-xs text-black break-all font-mono">
+                      {publicKey.toString()}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => disconnectSolana()} className="w-full cursor-pointer border-2 hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive transition-colors">
                     Disconnect
                   </Button>
                 </div>
               ) : (
                 <Button
                   variant="outline"
-                  className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary/50 transition-all shadow-sm hover:shadow-md"
+                  className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary/50 transition-all shadow-sm hover:shadow-md bg-white dark:bg-[#0a0a0a]"
                   onClick={handleConnectSolana}
                   disabled={connecting}
                 >

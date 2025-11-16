@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { formatName } from '@/lib/format';
 
 function useThemeSafe() {
   const [theme, setThemeState] = useState<'dark' | 'light'>('dark');
@@ -308,13 +309,20 @@ export default function Navbar() {
                     <div className="flex flex-col space-y-2">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12 border-2 border-primary/40">
-                          <AvatarImage src={userProfile?.avatar || user?.avatar} alt={user?.email} />
+                          <AvatarImage src={userProfile?.avatar || user?.avatar} alt={formatName(userProfile?.name || user?.name) || user?.email} />
                           <AvatarFallback className="text-lg font-bold">
-                            {user?.email?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
+                            {(formatName(userProfile?.name || user?.name) || user?.email)?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium leading-none truncate">{user?.email}</p>
+                          <p className="text-sm font-medium leading-none truncate">
+                            {formatName(userProfile?.name || user?.name) || user?.email}
+                          </p>
+                          {userProfile?.name && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {user?.email}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant={user?.role === 'seller' ? 'default' : 'secondary'} className="text-xs">
                               {user?.role === 'seller' ? 'Seller' : 'Buyer'}

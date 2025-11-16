@@ -94,12 +94,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Regular purchase
+    const { ObjectId } = require('mongodb');
+    // Validate productId before creating ObjectId
+    let productObjectId;
+    if (typeof productId === 'string' && productId.length === 24 && /^[0-9a-fA-F]{24}$/.test(productId)) {
+      productObjectId = new ObjectId(productId);
+    } else if (productId instanceof ObjectId) {
+      productObjectId = productId;
+    } else {
+      return res.status(400).json({ error: 'Invalid productId format for purchase' });
+    }
+    
+    // Get product to retrieve seller information
+    const product = await db.collection('products').findOne({ _id: productObjectId });
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Create order with seller information
     const order = {
       buyerId: userId,
+      buyerEmail: (session.user as any)?.email,
       productId,
+      productTitle: product.title,
+      sellerId: product.sellerId,
+      sellerEmail: product.sellerEmail,
       amount,
       paymentMethod,
       status: 'completed',
+      claimed: false, // Track if seller has claimed this payment
+      claimedAt: null,
+      claimTxHash: null,
       createdAt: new Date(),
       completedAt: new Date(),
     };
@@ -117,34 +142,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Mark product as sold
-    const { ObjectId } = require('mongodb');
-    // Validate productId before creating ObjectId
-    let productObjectId;
-    if (typeof productId === 'string' && productId.length === 24 && /^[0-9a-fA-F]{24}$/.test(productId)) {
-      productObjectId = new ObjectId(productId);
-    } else if (productId instanceof ObjectId) {
-      productObjectId = productId;
-    } else {
-      return res.status(400).json({ error: 'Invalid productId format for purchase' });
-    }
-    
     await db.collection('products').updateOne(
       { _id: productObjectId },
       { $set: { status: 'sold', soldAt: new Date() } }
     );
 
     // Create notification for seller
-    const product = await db.collection('products').findOne({ _id: productObjectId });
-    if (product) {
-      await db.collection('notifications').insertOne({
-        userId: product.sellerId,
-        type: 'order',
-        title: 'Product Sold!',
-        message: `Your product "${product.title}" has been purchased.`,
-        read: false,
-        createdAt: new Date(),
-      });
-    }
+    await db.collection('notifications').insertOne({
+      userId: product.sellerId,
+      type: 'order',
+      title: 'Product Sold!',
+      message: `Your product "${product.title}" has been purchased for ${amount} ${paymentMethod === 'eth' ? 'ETH' : 'SOL'}. You can claim your earnings from the seller dashboard.`,
+      read: false,
+      createdAt: new Date(),
+    });
 
     return res.status(200).json({ success: true, order });
   } catch (error: any) {

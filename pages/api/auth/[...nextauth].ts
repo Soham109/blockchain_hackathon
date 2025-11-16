@@ -64,6 +64,7 @@ export const authOptions: NextAuthOptions = {
             (session as any).user.studentVerified = !!user.studentVerified;
             (session as any).user.studentId = user.studentId || null;
             (session as any).user.role = user.role || token.role;
+            (session as any).user.name = user.name || null;
           }
         }
       } catch (e) {

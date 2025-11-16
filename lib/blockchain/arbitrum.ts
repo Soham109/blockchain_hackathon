@@ -35,44 +35,99 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
     throw new Error('Wallet not found. Please install MetaMask or Gemini Wallet extension.');
   }
 
-  console.log('Wallet found, requesting account access...');
+  // Detect which wallet is being used and get the correct provider
+  let ethereumProvider = window.ethereum;
+  let isGemini = false;
+  let walletName = 'MetaMask';
 
-  // Request account access to ensure MetaMask is ready
+  // Check if multiple providers exist (e.g., both MetaMask and Gemini)
+  if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+    console.log('Multiple providers detected:', window.ethereum.providers.length);
+    // Try to find Gemini provider first
+    const geminiProvider = window.ethereum.providers.find((p: any) => p.isGemini);
+    if (geminiProvider) {
+      ethereumProvider = geminiProvider;
+      isGemini = true;
+      walletName = 'Gemini Wallet';
+      console.log('Using Gemini Wallet provider from providers array');
+    } else {
+      // Use the first provider (usually MetaMask)
+      ethereumProvider = window.ethereum.providers[0];
+      console.log('Using first provider from providers array');
+    }
+  } else {
+    // Single provider - check if it's Gemini
+    isGemini = window.ethereum.isGemini === true;
+    walletName = isGemini ? 'Gemini Wallet' : 'MetaMask';
+    console.log('Single provider detected:', walletName);
+  }
+
+  console.log('Wallet found, requesting account access...');
+  console.log('Wallet type:', walletName);
+  console.log('Provider available:', !!ethereumProvider);
+  console.log('Provider request method:', typeof ethereumProvider?.request);
+
+  // Request account access to ensure wallet is ready
   let accountToUse = from;
   try {
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    console.log('Accounts:', accounts);
+    // Check if wallet is available and ready
+    if (!ethereumProvider || typeof ethereumProvider.request !== 'function') {
+      throw new Error(`${walletName} is not available. Please make sure the extension is installed and enabled.`);
+    }
+
+    console.log('Requesting accounts from', walletName);
+    const accounts = await ethereumProvider.request({ method: 'eth_requestAccounts' });
+    console.log('Accounts received:', accounts);
     
     if (!accounts || accounts.length === 0) {
-      throw new Error('No accounts found. Please unlock MetaMask and try again.');
+      throw new Error(`No accounts found. Please unlock ${walletName} and try again.`);
     }
     
-    // Use the currently connected account from MetaMask
+    // Use the currently connected account from wallet
     const connectedAccount = accounts[0];
     accountToUse = connectedAccount as `0x${string}`;
     
     // Verify the from address matches the connected account
     if (from.toLowerCase() !== connectedAccount.toLowerCase()) {
       console.warn('Address mismatch. Connected:', connectedAccount, 'Requested:', from);
-      console.log('Using connected account from MetaMask:', connectedAccount);
+      console.log(`Using connected account from ${walletName}:`, connectedAccount);
     }
   } catch (requestError: any) {
     console.error('Account request error:', requestError);
-    if (requestError.code === 4001) {
-      throw new Error('Please connect your wallet in MetaMask and try again.');
+    console.error('Error details:', {
+      code: requestError?.code,
+      message: requestError?.message,
+      name: requestError?.name,
+      stack: requestError?.stack,
+      fullError: JSON.stringify(requestError, Object.getOwnPropertyNames(requestError))
+    });
+    
+    // Handle user rejection
+    if (requestError?.code === 4001 || requestError?.message?.includes('rejected') || requestError?.message?.includes('denied')) {
+      throw new Error(`Connection rejected. Please approve the connection request in ${walletName}.`);
     }
-    throw new Error(`Failed to connect to wallet: ${requestError.message || 'Unknown error'}`);
+    
+    // Handle specific error messages
+    if (requestError?.message) {
+      if (requestError.message.includes('not available') || requestError.message.includes('not installed')) {
+        throw new Error(`${walletName} is not available. Please install and enable the ${walletName} extension.`);
+      }
+      throw new Error(`Failed to connect to ${walletName}: ${requestError.message}`);
+    }
+    
+    // Handle empty error object or unknown errors
+    throw new Error(`Failed to connect to ${walletName}. Please make sure ${walletName} is unlocked and try again.`);
   }
 
   // Switch to local network if needed
   try {
-    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
-    const targetChainId = `0x${localArbitrum.id.toString(16)}`; // Convert 31337 to 0x7a69
+    const currentChainId = await ethereumProvider.request({ method: 'eth_chainId' });
+    const targetChainId = `0x${localArbitrum.id.toString(16)}`; // Convert 1337 to 0x539
     console.log('Current chain ID:', currentChainId, 'Target:', targetChainId);
     
     if (currentChainId !== targetChainId) {
       console.log('Switching network...');
-      await window.ethereum.request({
+      await ethereumProvider.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: targetChainId }],
       });
@@ -81,9 +136,9 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
   } catch (switchError: any) {
     console.error('Network switch error:', switchError);
     // If chain doesn't exist, add it
-    if (switchError.code === 4902) {
+    if (switchError.code === 4902 || switchError?.error?.code === 4902) {
       console.log('Adding network...');
-      await window.ethereum.request({
+      await ethereumProvider.request({
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: `0x${localArbitrum.id.toString(16)}`,
@@ -102,7 +157,7 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
   const client = createWalletClient({
     account: accountToUse,
     chain: localArbitrum,
-    transport: custom(window.ethereum),
+    transport: custom(ethereumProvider),
   });
 
   // Convert amount to wei
@@ -127,8 +182,8 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
       });
       console.log('Transaction hash received via viem:', hash);
     } catch (viemError: any) {
-      // If viem fails, try direct MetaMask request
-      console.warn('Viem sendTransaction failed, trying direct MetaMask request:', viemError);
+      // If viem fails, try direct wallet request
+      console.warn(`Viem sendTransaction failed, trying direct ${walletName} request:`, viemError);
       
       const txData = {
         from: accountToUse,
@@ -137,9 +192,9 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
         data: `0x${Buffer.from(paymentId).toString('hex')}`,
       };
       
-      console.log('Sending via direct MetaMask request:', txData);
+      console.log(`Sending via direct ${walletName} request:`, txData);
       
-      hash = await window.ethereum.request({
+      hash = await ethereumProvider.request({
         method: 'eth_sendTransaction',
         params: [txData],
       }) as `0x${string}`;
@@ -156,13 +211,13 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
     
     // Handle user rejection
     if (error?.code === 4001 || error?.message?.includes('User rejected') || error?.message?.includes('rejected')) {
-      throw new Error('Transaction was rejected. Please approve the transaction in MetaMask to complete the payment.');
+      throw new Error(`Transaction was rejected. Please approve the transaction in ${walletName} to complete the payment.`);
     }
     
-    // Handle authorization errors - this means MetaMask didn't prompt
+    // Handle authorization errors - this means wallet didn't prompt
     if (error?.message?.includes('not been authorized') || error?.message?.includes('authorized') || error?.code === 4100) {
-      console.error('Authorization error - MetaMask prompt may not have appeared');
-      throw new Error('MetaMask prompt did not appear. Please try: 1) Refresh the page, 2) Check if MetaMask is unlocked, 3) Make sure you\'re on the correct network.');
+      console.error(`Authorization error - ${walletName} prompt may not have appeared`);
+      throw new Error(`${walletName} prompt did not appear. Please try: 1) Refresh the page, 2) Check if ${walletName} is unlocked, 3) Make sure you're on the correct network.`);
     }
     
     // Handle insufficient funds
@@ -177,8 +232,8 @@ export async function sendArbitrumPayment(params: PaymentParams): Promise<`0x${s
     
     // Handle case where transaction wasn't sent (no prompt appeared)
     if (error?.message?.includes('User rejected the request') === false && !error?.code) {
-      console.error('Transaction failed without user interaction - MetaMask prompt likely did not appear');
-      throw new Error('MetaMask prompt did not appear. Please refresh the page and try again. Make sure MetaMask is unlocked and connected.');
+      console.error(`Transaction failed without user interaction - ${walletName} prompt likely did not appear`);
+      throw new Error(`${walletName} prompt did not appear. Please refresh the page and try again. Make sure ${walletName} is unlocked and connected.`);
     }
     
     // Generic error with original message if it's helpful

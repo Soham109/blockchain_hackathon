@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, AlertCircle, Store, ShoppingBag, Plus, ArrowRight, TrendingUp, Package, MessageCircle, Heart, Eye, Inbox, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ConnectWallet } from '../components/ConnectWallet';
+import { formatName } from '@/lib/format';
 
 export default function DashboardPage() {
   const { data: session, status, update } = useSession();
@@ -67,7 +68,9 @@ export default function DashboardPage() {
             <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
               <span className="text-blue-500 dark:text-cyan-400">Dash</span>board
             </h1>
-            <p className="text-muted-foreground text-xl">Welcome back, {user.email?.split('@')[0]}</p>
+            <p className="text-muted-foreground text-xl">
+              Welcome back, {formatName(user.name) || user.email?.split('@')[0] || 'User'}
+            </p>
           </div>
           <div className="flex gap-3 justify-center md:justify-end">
             <ConnectWallet />

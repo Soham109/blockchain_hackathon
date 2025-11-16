@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { AvatarUpload } from '@/app/components/AvatarUpload';
 import { Store, Package, Star, MessageCircle, Heart, Calendar, Mail, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatName } from '@/lib/format';
 
 export default function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -91,21 +92,32 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
                   />
                 ) : (
                   <Avatar className="h-32 w-32 border-4 border-primary/30">
-                    <AvatarImage src={profile.avatar} alt={profile.email} />
+                    <AvatarImage src={profile.avatar} alt={formatName(profile.name) || profile.email} />
                     <AvatarFallback className="text-4xl font-bold">
-                      {profile.email?.[0]?.toUpperCase() || <User size={48} />}
+                      {(formatName(profile.name) || profile.email)?.[0]?.toUpperCase() || <User size={48} />}
                     </AvatarFallback>
                   </Avatar>
                 )}
               </div>
               <div className="flex-1">
-                <h1 className="text-4xl font-bold mb-2">
-                  {profile.email?.split('@')[0] || 'User'}
-                </h1>
-                <p className="text-muted-foreground mb-4 flex items-center gap-2">
-                  <Mail size={16} />
-                  {profile.email}
-                </p>
+                <div className="mb-3">
+                  <h1 className="text-4xl font-bold mb-2">
+                    {formatName(profile.name) || profile.email?.split('@')[0] || 'User'}
+                  </h1>
+                  {profile.name && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail size={14} />
+                      <span className="font-medium">{profile.email}</span>
+                      <span className="text-xs text-muted-foreground/70">(Username)</span>
+                    </div>
+                  )}
+                  {!profile.name && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail size={16} />
+                      <span>{profile.email}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3 mb-4">
                   <Badge variant="secondary" className="capitalize">
                     {profile.role || 'buyer'}

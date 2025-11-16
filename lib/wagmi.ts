@@ -1,6 +1,7 @@
 import { createConfig, http } from 'wagmi';
 import { defineChain } from 'viem';
 import { injected } from 'wagmi/connectors';
+import { gemini } from '@gemini-wallet/wagmi';
 
 // Local Arbitrum-compatible chain (Chain ID: 31337)
 export const localArbitrum = defineChain({
@@ -24,11 +25,19 @@ export const localArbitrum = defineChain({
 export const config = createConfig({
   chains: [localArbitrum],
   connectors: [
-    // Use injected connector instead of metaMask() to avoid SDK initialization errors
-    // The injected connector automatically detects MetaMask, Gemini Wallet, and other injected wallets
-    // This prevents the "Cannot read properties of undefined (reading 'on')" error
+    // Gemini Wallet connector (explicit support)
+    gemini({
+      appMetadata: {
+        name: 'College Marketplace',
+        description: 'Buy and sell items on campus',
+        url: typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com',
+        icons: typeof window !== 'undefined' ? [`${window.location.origin}/icon.png`] : [],
+      },
+    }),
+    // Injected connector for MetaMask and other wallets
+    // This will detect MetaMask and other injected wallets
     injected({
-      // This will detect any injected wallet including MetaMask and Gemini Wallet
+      // This will detect any injected wallet including MetaMask
       // MetaMask injects window.ethereum, so it will be detected automatically
     }),
   ],

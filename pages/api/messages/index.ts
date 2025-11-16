@@ -46,14 +46,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Find receiver if only email provided
     let receiverUserId = receiverId;
+    let receiverUser = null;
     if (!receiverUserId && receiverEmail) {
-      const receiver = await db.collection('users').findOne({ email: receiverEmail });
-      if (!receiver) return res.status(404).json({ error: 'Receiver not found' });
-      receiverUserId = String(receiver._id);
+      receiverUser = await db.collection('users').findOne({ email: receiverEmail });
+      if (!receiverUser) return res.status(404).json({ error: 'Receiver not found' });
+      receiverUserId = String(receiverUser._id);
+    } else if (receiverUserId) {
+      receiverUser = await db.collection('users').findOne({ _id: new ObjectId(receiverUserId) });
     }
 
     if (receiverUserId === userId) {
       return res.status(400).json({ error: 'Cannot message yourself' });
+    }
+
+    // Fetch product details if productId is provided to get correct title and seller info
+    let finalProductId = productId;
+    let finalProductTitle = productTitle;
+    let sellerId = null;
+    let sellerEmail = null;
+    
+    if (productId) {
+      try {
+        const product = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+        if (product) {
+          finalProductId = String(product._id);
+          finalProductTitle = product.title || productTitle;
+          sellerId = String(product.sellerId);
+          sellerEmail = product.sellerEmail;
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+      }
     }
 
     // Normalize participant arrays for consistent comparison
@@ -131,13 +154,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (existing) {
       // Update product info if provided and not already set
-      if (productId && !existing.productId) {
+      if (finalProductId && !existing.productId) {
         await db.collection('conversations').updateOne(
           { _id: existing._id },
-          { $set: { productId, productTitle: productTitle || null } }
+          { $set: { 
+            productId: finalProductId, 
+            productTitle: finalProductTitle || null,
+            sellerId: sellerId || null,
+            sellerEmail: sellerEmail || null
+          } }
         );
-        existing.productId = productId;
-        existing.productTitle = productTitle || null;
+        existing.productId = finalProductId;
+        existing.productTitle = finalProductTitle || null;
+        existing.sellerId = sellerId;
+        existing.sellerEmail = sellerEmail;
       }
       return res.status(200).json({ conversation: existing });
     }
@@ -147,8 +177,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const conversation = {
       participantIds: sortedParticipantIds,
       participantEmails: sortedParticipantEmails,
-      productId: productId || null,
-      productTitle: productTitle || null,
+      productId: finalProductId || null,
+      productTitle: finalProductTitle || null,
+      sellerId: sellerId || null,
+      sellerEmail: sellerEmail || null,
       lastMessageAt: new Date(),
       createdAt: new Date()
     };

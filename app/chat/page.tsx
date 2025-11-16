@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Send, ArrowLeft, Package, User, Mail, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatName } from '@/lib/format';
 
 function ChatContent() {
   const { data: session, status } = useSession();
@@ -345,7 +346,7 @@ function ChatContent() {
 
   // Always return the same structure
     return (
-    <div className="h-screen pt-32 px-4 bg-background flex flex-col">
+    <div className="h-screen pt-32 pb-6 px-4 bg-background flex flex-col">
       {loading || isLoading ? (
         <div className="flex items-center justify-center flex-1">
         <div className="space-y-4 w-full max-w-7xl">
@@ -397,14 +398,14 @@ function ChatContent() {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-12 w-12 flex-shrink-0 border-2 border-primary/20">
-                          <AvatarImage src={convUser?.avatar} alt={otherEmail} />
+                          <AvatarImage src={convUser?.avatar} alt={formatName(convUser?.name) || otherEmail} />
                           <AvatarFallback className="text-base font-bold">
-                            {otherEmail[0]?.toUpperCase() || <User size={16} />}
+                            {(formatName(convUser?.name) || otherEmail)[0]?.toUpperCase() || <User size={16} />}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="font-semibold text-sm truncate">{otherEmail}</p>
+                            <p className="font-semibold text-sm truncate">{formatName(convUser?.name) || otherEmail}</p>
                             {conv.unreadCount > 0 && (
                               <Badge variant="default" className="ml-auto flex-shrink-0">
                                 {conv.unreadCount}
@@ -437,14 +438,14 @@ function ChatContent() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <Avatar className="h-14 w-14 flex-shrink-0 border-2 border-primary/30 shadow-sm">
-                        <AvatarImage src={otherUser?.avatar} alt={getOtherParticipant(activeConversation)} />
+                        <AvatarImage src={otherUser?.avatar} alt={formatName(otherUser?.name) || getOtherParticipant(activeConversation)} />
                         <AvatarFallback className="text-xl font-bold">
-                          {getOtherParticipant(activeConversation)[0]?.toUpperCase() || <User size={20} />}
+                          {(formatName(otherUser?.name) || getOtherParticipant(activeConversation))[0]?.toUpperCase() || <User size={20} />}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <CardTitle className="text-lg font-bold truncate">{getOtherParticipant(activeConversation)}</CardTitle>
+                          <CardTitle className="text-lg font-bold truncate">{formatName(otherUser?.name) || getOtherParticipant(activeConversation)}</CardTitle>
                           {otherUser?.studentVerified && (
                             <Badge variant="outline" className="text-xs border-green-500/30 text-green-700 dark:text-green-300">Verified</Badge>
                           )}
@@ -454,11 +455,18 @@ function ChatContent() {
                             <Mail size={12} />
                             <span className="truncate">{getOtherParticipant(activeConversation)}</span>
                           </div>
-                          {otherUser?.role && (
+                          {(() => {
+                            // Determine if the other user is the seller or buyer based on the product
+                            const currentUserEmail = (session?.user as any)?.email;
+                            const isOtherUserSeller = activeConversation.sellerEmail && 
+                              activeConversation.sellerEmail === getOtherParticipant(activeConversation);
+                            const roleToShow = isOtherUserSeller ? 'Seller' : (otherUser?.role === 'seller' ? 'Seller' : 'Buyer');
+                            return (
                             <Badge variant="secondary" className="text-xs capitalize">
-                              {otherUser.role}
+                                {roleToShow}
                             </Badge>
-                          )}
+                            );
+                          })()}
                         </div>
                         {activeConversation.productTitle && (
                           <Link 
@@ -508,14 +516,14 @@ function ChatContent() {
                               <Avatar className="h-9 w-9 flex-shrink-0 border-2 border-primary/20 shadow-sm">
                                 <AvatarImage src={otherUser?.avatar} />
                                 <AvatarFallback className="text-xs font-bold">
-                                  {msg.senderEmail[0]?.toUpperCase()}
+                                  {(formatName(otherUser?.name) || msg.senderEmail)[0]?.toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                             )}
                             <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
                               {!isOwn && (
                                 <p className="text-xs text-muted-foreground mb-1.5 px-1.5 font-medium">
-                                  {msg.senderEmail}
+                                  {formatName(otherUser?.name) || msg.senderEmail}
                                 </p>
                               )}
                               <div
@@ -581,7 +589,7 @@ function ChatContent() {
                   )}
                 </CardContent>
 
-                <div className="p-4 border-t bg-muted flex-shrink-0">
+                <div className="p-4 pb-6 border-t bg-muted flex-shrink-0">
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <Input
                       type="text"
