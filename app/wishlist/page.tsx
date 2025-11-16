@@ -11,19 +11,28 @@ import { Heart, Package, Trash2, MapPin } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function WishlistPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { toast } = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.user) {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated' || !session?.user) {
       router.push('/auth/signin');
       return;
     }
+
+    const user = session.user as any;
+    if (!user.studentVerified) {
+      router.push('/onboarding');
+      return;
+    }
+
     loadWishlist();
-  }, [session, router]);
+  }, [session, status, router]);
 
   async function loadWishlist() {
     try {
@@ -57,9 +66,16 @@ export default function WishlistPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-32 pb-12 px-4">
+  // Always render same structure to avoid hook violations
+  const user = session?.user as any;
+  const isVerified = user?.studentVerified;
+  const isLoading = status === 'loading' || !session?.user;
+  const shouldShowContent = isVerified && status !== 'loading' && session?.user;
+
+  // Always return the same structure
+  return (
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+      {loading || isLoading ? (
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -76,13 +92,15 @@ export default function WishlistPage() {
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
-      <div className="max-w-7xl mx-auto space-y-8 pt-4">
+      ) : !shouldShowContent ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Redirecting...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto space-y-8 pt-4">
         <div className="text-center md:text-left">
           <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
             My <span className="text-blue-500 dark:text-cyan-400">Wishlist</span>
@@ -170,7 +188,8 @@ export default function WishlistPage() {
             </CardContent>
           </Card>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

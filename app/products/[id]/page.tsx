@@ -17,7 +17,7 @@ import { ProductBoost } from '../../components/ProductBoost';
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -25,6 +25,22 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [paymentOpen, setPaymentOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Check verification status
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated' || !session?.user) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    const user = session.user as any;
+    if (!user.studentVerified) {
+      router.push('/onboarding');
+      return;
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     if (!id) {
@@ -100,46 +116,55 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-32 pb-12 px-4 flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-7xl">
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-[600px] w-full" />
-        </div>
-      </div>
-    );
-  }
+  // Always render same structure to avoid hook violations
+  const user = session?.user as any;
+  const isVerified = user?.studentVerified;
+  const isLoading = status === 'loading' || !session?.user;
+  const shouldShowContent = isVerified && status !== 'loading' && session?.user;
 
-  if (!product) {
-    return (
-      <div className="min-h-screen pt-32 pb-12 px-4 flex items-center justify-center">
-        <Card className="text-center p-12 max-w-md border-2 shadow-sm">
-          <CardContent>
-            <Package size={64} className="mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
-            <p className="text-muted-foreground mb-6">This product doesn't exist or has been removed.</p>
-            <Button onClick={() => router.push('/browse')} size="lg">
-              Browse Products
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const price = product.price || (product.priceCents / 100).toFixed(2);
-  const conditionLabels: Record<string, string> = {
-    excellent: 'Excellent',
-    'very-good': 'Very Good',
-    good: 'Good',
-    fair: 'Fair',
-    poor: 'Poor',
-  };
-
+  // Always return the same structure
   return (
-    <main className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
-      <div className="max-w-7xl mx-auto space-y-4 pt-4">
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+      {isLoading || loading ? (
+        <div className="flex items-center justify-center">
+          <div className="space-y-4 w-full max-w-7xl">
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-[600px] w-full" />
+          </div>
+        </div>
+      ) : !shouldShowContent ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Redirecting...</p>
+          </div>
+        </div>
+      ) : !product ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="text-center p-12 max-w-md border-2 shadow-sm">
+            <CardContent>
+              <Package size={64} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
+              <p className="text-muted-foreground mb-6">This product doesn't exist or has been removed.</p>
+              <Button onClick={() => router.push('/browse')} size="lg">
+                Browse Products
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <main className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
+          {(() => {
+            const price = product.price || (product.priceCents / 100).toFixed(2);
+            const conditionLabels: Record<string, string> = {
+              excellent: 'Excellent',
+              'very-good': 'Very Good',
+              good: 'Good',
+              fair: 'Fair',
+              poor: 'Poor',
+            };
+            return (
+              <div className="max-w-7xl mx-auto space-y-4 pt-4">
         {/* Main Product Section - Compact Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Images - Takes 2 columns */}
@@ -347,6 +372,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           type="purchase"
         />
       )}
-    </main>
+              </div>
+            );
+          })()}
+        </main>
+      )}
+    </div>
   );
 }

@@ -42,9 +42,15 @@ export default function DashboardPage() {
     }
   }, [status, session, router]);
 
-  if (status === 'loading' || !session?.user) {
-    return (
-      <div className="min-h-screen pt-28 pb-12 px-4">
+  // Always return the same structure to avoid hook violations
+  const user = session?.user as any;
+  const isLoading = status === 'loading' || !session?.user;
+  const isSeller = user?.role === 'seller';
+
+  // Always return the same structure
+  return (
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
+      {isLoading || loading ? (
         <div className="max-w-7xl mx-auto space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -53,16 +59,8 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  const user = session.user as any;
-  const isSeller = user.role === 'seller';
-
-  return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
-      <div className="max-w-7xl mx-auto space-y-8">
+      ) : (
+        <div className="max-w-7xl mx-auto space-y-8">
         {/* Welcome Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-4">
           <div className="text-center md:text-left">
@@ -325,7 +323,8 @@ export default function DashboardPage() {
             </Card>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

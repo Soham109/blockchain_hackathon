@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +19,8 @@ import { Search, SlidersHorizontal, MapPin, Package, BookOpen, Laptop, Sofa, Wre
 import { ProductCard } from '../components/ProductCard';
 
 function BrowseContent() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,29 @@ function BrowseContent() {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showFilters, setShowFilters] = useState(false);
 
+  // Check verification status
   useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated' || !session?.user) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    const user = session.user as any;
+    if (!user.studentVerified) {
+      router.push('/onboarding');
+      return;
+    }
+  }, [session, status, router]);
+
+  useEffect(() => {
+    // Only fetch products if user is verified
+    const user = session?.user as any;
+    if (!user?.studentVerified || status === 'loading') {
+      return;
+    }
+
     const params = new URLSearchParams();
     if (searchQuery) params.set('q', searchQuery);
     if (filter !== 'all') params.set('category', filter);
@@ -72,11 +95,18 @@ function BrowseContent() {
         console.error('Failed to fetch products:', e);
         setLoading(false);
       });
-  }, [searchQuery, filter, sortBy, priceRange]);
+  }, [searchQuery, filter, sortBy, priceRange, session, status]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-24 pb-12 px-4">
+  // Always render same structure to avoid hook violations
+  const user = session?.user as any;
+  const isVerified = user?.studentVerified;
+  const isLoading = status === 'loading' || !session?.user;
+  const shouldShowContent = isVerified && status !== 'loading' && session?.user;
+
+  // Always return the same structure to avoid hook violations
+  return (
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
+      {isLoading || loading ? (
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -93,13 +123,15 @@ function BrowseContent() {
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
-      <div className="max-w-7xl mx-auto">
+      ) : !shouldShowContent ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Redirecting...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 pt-4">
           <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">
@@ -236,7 +268,8 @@ function BrowseContent() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

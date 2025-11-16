@@ -164,14 +164,13 @@ export default function Navbar() {
   ];
 
   // Hide navbar on auth pages
-  if (pathname?.includes('/auth/') || pathname === '/signup' || pathname === '/verify-email') {
-    return null;
-  }
+  const shouldHideNavbar = pathname?.includes('/auth/') || pathname === '/signup' || pathname === '/verify-email';
 
+  // Always return the same structure to avoid hook violations
   return (
     <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300 ${
       scrolled ? 'shadow-2xl bg-background/90' : ''
-    }`}>
+    } ${shouldHideNavbar ? 'hidden' : ''}`}>
       <div className="flex h-16 items-center px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="mr-8 flex items-center space-x-2 group">
@@ -191,17 +190,17 @@ export default function Navbar() {
               const isActive = pathname === item.path || (item.path === '/dashboard' && pathname === '/');
               return (
                 <Link key={item.href} href={item.href} className="relative group">
-                  <div className="relative">
+                  <div className="relative px-2 py-1.5 rounded-lg">
                     {/* Background block for hover and active */}
-                    <div className={`absolute inset-0 rounded-lg transition-all duration-200 ${
+                    <div className={`absolute inset-0 rounded-lg transition-all duration-300 ease-in-out ${
                       isActive 
-                        ? 'bg-muted' 
-                        : 'bg-muted/0 group-hover:bg-muted/50'
-                    }`} />
+                        ? 'bg-accent/70' 
+                        : 'bg-transparent group-hover:bg-accent/40'
+                    }`} style={{ pointerEvents: 'none' }} />
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="cursor-pointer relative h-9 px-3 z-10"
+                      className="cursor-pointer relative h-8 px-3 z-10 bg-transparent hover:bg-transparent transition-colors duration-300"
                     >
                       <Icon className="h-4 w-4 mr-2" />
                       {item.label}
@@ -212,17 +211,17 @@ export default function Navbar() {
             })}
             {user?.role === 'seller' && (
               <Link href="/seller/dashboard" className="relative group">
-                <div className="relative">
+                <div className="relative px-2 py-1.5 rounded-lg">
                   {/* Background block for hover and active */}
-                  <div className={`absolute inset-0 rounded-lg transition-all duration-200 ${
+                  <div className={`absolute inset-0 rounded-lg transition-all duration-300 ease-in-out ${
                     pathname?.startsWith('/seller')
-                      ? 'bg-muted' 
-                      : 'bg-muted/0 group-hover:bg-muted/50'
-                  }`} />
+                      ? 'bg-accent/70' 
+                      : 'bg-transparent group-hover:bg-accent/40'
+                  }`} style={{ pointerEvents: 'none' }} />
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="cursor-pointer relative h-9 px-3 z-10"
+                    className="cursor-pointer relative h-8 px-3 z-10 bg-transparent hover:bg-transparent transition-colors duration-300"
                   >
                     <Store className="h-4 w-4 mr-2" />
                     My Shop

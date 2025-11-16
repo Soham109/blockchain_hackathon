@@ -22,21 +22,15 @@ export default function OnboardingPage() {
 
   // Redirect if not logged in
   useEffect(() => {
-  if (status === 'unauthenticated') {
+    if (status === 'unauthenticated') {
       router.push('/auth/signin');
     }
   }, [status, router]);
 
-  if (status === 'loading' || status === 'unauthenticated') {
-    return (
-      <div className="min-h-screen pt-32 pb-12 px-4 flex items-center justify-center bg-background">
-        <Skeleton className="h-12 w-64" />
-      </div>
-    );
-  }
-
+  // Always return the same structure to avoid hook violations
   const user = session?.user as any;
   const isStudentVerified = user?.studentVerified;
+  const isLoading = status === 'loading' || status === 'unauthenticated';
 
   // Redirect if already verified
   useEffect(() => {
@@ -170,9 +164,15 @@ export default function OnboardingPage() {
     }
   }, [user?.id, isStudentVerified]);
 
+  // Always return the same structure
   return (
     <div className="min-h-screen pt-28 pb-8 px-4 bg-background">
-      <div className="max-w-3xl mx-auto">
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Skeleton className="h-12 w-64" />
+        </div>
+      ) : (
+        <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
           <Badge className="mb-3 px-4 py-1.5 text-sm">Step 2: Complete Verification</Badge>
@@ -423,7 +423,8 @@ export default function OnboardingPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

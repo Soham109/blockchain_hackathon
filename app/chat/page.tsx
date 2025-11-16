@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function ChatContent() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get('id');
@@ -33,13 +33,23 @@ function ChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<string | null>(null);
 
+  // Check verification status
   useEffect(() => {
-    if (!session?.user) {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated' || !session?.user) {
       router.push('/auth/signin');
       return;
     }
+
+    const user = session.user as any;
+    if (!user.studentVerified) {
+      router.push('/onboarding');
+      return;
+    }
+
     loadConversations();
-  }, [session]);
+  }, [session, status, router]);
 
   useEffect(() => {
     if (conversationId) {
@@ -279,20 +289,31 @@ function ChatContent() {
     return conv.participantIds.find((id: string) => String(id) !== userId) || null;
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-7xl">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-[600px] w-full" />
-        </div>
-      </div>
-    );
-  }
+  // Always render same structure to avoid hook violations
+  const user = session?.user as any;
+  const isVerified = user?.studentVerified;
+  const isLoading = status === 'loading' || !session?.user;
+  const shouldShowContent = isVerified && status !== 'loading' && session?.user;
 
+  // Always return the same structure
   return (
     <div className="h-screen pt-32 px-4 bg-background flex flex-col">
-      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
+      {loading || isLoading ? (
+        <div className="flex items-center justify-center flex-1">
+          <div className="space-y-4 w-full max-w-7xl">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-[600px] w-full" />
+          </div>
+        </div>
+      ) : !shouldShowContent ? (
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Redirecting...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col min-h-0">
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Conversations List */}
           <Card className="w-80 flex-shrink-0 flex flex-col border-2 shadow-lg min-h-0">
@@ -537,7 +558,8 @@ function ChatContent() {
             )}
           </Card>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
