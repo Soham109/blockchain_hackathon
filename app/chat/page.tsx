@@ -296,7 +296,7 @@ function ChatContent() {
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Conversations List */}
           <Card className="w-80 flex-shrink-0 flex flex-col border-2 shadow-lg min-h-0">
-            <CardHeader className="border-b pb-3 bg-muted/30 flex-shrink-0">
+            <CardHeader className="border-b pb-3 bg-muted flex-shrink-0">
               <CardTitle className="flex items-center gap-2 text-xl font-bold">
                 <MessageCircle size={20} />
                 Messages
@@ -362,7 +362,7 @@ function ChatContent() {
           <Card className="flex-1 flex flex-col border-2 shadow-lg min-h-0">
             {activeConversation ? (
               <>
-                <CardHeader className="border-b pb-4 bg-muted/20 flex-shrink-0">
+                <CardHeader className="border-b pb-4 bg-muted flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <Avatar className="h-14 w-14 flex-shrink-0 border-2 border-primary/30 shadow-sm">
@@ -476,7 +476,7 @@ function ChatContent() {
                   )}
                 </CardContent>
 
-                <div className="p-4 border-t bg-muted/30 backdrop-blur-sm flex-shrink-0">
+                <div className="p-4 border-t bg-muted flex-shrink-0">
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <Input
                       type="text"

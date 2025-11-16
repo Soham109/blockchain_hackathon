@@ -47,15 +47,16 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
 
   return (
     <>
-      <div className={cn("space-y-4", className)}>
+      <div className={cn("space-y-3", className)}>
         {/* Main Image */}
         <Card className="border-2 overflow-hidden">
-          <div className="relative aspect-square bg-muted group">
+          <div className="relative bg-muted group flex items-center justify-center" style={{ maxHeight: '600px', minHeight: '300px', width: '100%' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={images[currentIndex]}
               alt={`Image ${currentIndex + 1}`}
-              className="w-full h-full object-cover cursor-pointer"
+              className="max-w-full max-h-full w-auto h-auto object-contain cursor-pointer"
+              style={{ maxHeight: '600px', maxWidth: '100%' }}
               onClick={() => openLightbox(currentIndex)}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23ddd" width="400" height="400"/%3E%3Ctext x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999"%3EImage%3C/text%3E%3C/svg%3E';
@@ -66,7 +67,7 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 cursor-pointer"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-background hover:bg-background cursor-pointer border shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     goToPrevious();
@@ -77,7 +78,7 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background/90 cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-background hover:bg-background cursor-pointer border shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     goToNext();
@@ -85,7 +86,7 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-background/80 px-3 py-1 rounded-full text-xs">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-background px-3 py-1 rounded-full text-xs border shadow-md">
                   {currentIndex + 1} / {images.length}
                 </div>
               </>
@@ -95,7 +96,7 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
 
         {/* Thumbnail Grid */}
         {images.length > 1 && (
-          <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-4 md:grid-cols-5 gap-1.5">
             {images.map((image, index) => (
               <button
                 key={index}
@@ -124,7 +125,7 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
 
       {/* Lightbox Dialog */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-7xl p-0 bg-black/95 border-none">
+        <DialogContent className="max-w-7xl p-0 bg-black border-none">
           <div className="relative">
             <Button
               variant="ghost"
@@ -158,13 +159,14 @@ export default function ImageGallery({ images, className }: ImageGalleryProps) {
             <img
               src={images[lightboxIndex]}
               alt={`Lightbox ${lightboxIndex + 1}`}
-              className="w-full h-auto max-h-[90vh] object-contain"
+              className="w-full h-auto max-h-[90vh] max-w-full object-contain mx-auto"
+              style={{ display: 'block' }}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%23ddd" width="800" height="600"/%3E%3Ctext x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999"%3EImage%3C/text%3E%3C/svg%3E';
               }}
             />
             {images.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full text-white text-sm">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/90 px-4 py-2 rounded-full text-white text-sm">
                 {lightboxIndex + 1} / {images.length}
               </div>
             )}

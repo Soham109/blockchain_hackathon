@@ -81,10 +81,12 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
       <div className="max-w-7xl mx-auto space-y-8 pt-4">
         <div className="text-center md:text-left">
-          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">My Wishlist</h1>
+          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
+            My <span className="text-blue-500 dark:text-cyan-400">Wishlist</span>
+          </h1>
           <p className="text-muted-foreground text-xl">
             {products.length} {products.length === 1 ? 'item' : 'items'} saved
           </p>
@@ -107,7 +109,7 @@ export default function WishlistPage() {
                       <Package className="h-12 w-12 text-muted-foreground" />
                     )}
                     <div className="absolute top-2 right-2 z-10">
-                      <Badge variant="secondary" className="bg-background/90 backdrop-blur-sm border shadow-sm">
+                      <Badge variant="secondary" className="bg-background border shadow-sm">
                         {product.category || 'General'}
                       </Badge>
                     </div>
@@ -134,7 +136,7 @@ export default function WishlistPage() {
                     </div>
                   </CardContent>
                 </Link>
-                <div className="p-4 border-t bg-muted/30">
+                <div className="p-4 border-t bg-muted">
                   <Button
                     variant="outline"
                     size="sm"

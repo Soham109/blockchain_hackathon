@@ -12,7 +12,8 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 const queryClient = new QueryClient();
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const solanaNetwork = WalletAdapterNetwork.Mainnet;
+  // Use local Solana network
+  const solanaEndpoint = process.env.NEXT_PUBLIC_SOLANA_RPC || 'http://127.0.0.1:8899';
   const solanaWallets = useMemo(
     () => [new PhantomWalletAdapter()],
     []
@@ -21,7 +22,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <ConnectionProvider endpoint={process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.mainnet-beta.solana.com'}>
+        <ConnectionProvider endpoint={solanaEndpoint}>
           <SolanaWalletProvider wallets={solanaWallets} autoConnect>
             <WalletModalProvider>
               {children}

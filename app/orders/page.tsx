@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Package, Download, Eye, Calendar, DollarSign, Truck } from 'lucide-react';
+import { Package, Download, Eye, Calendar, DollarSign, Truck, ExternalLink, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -57,8 +57,8 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-24 pb-12 px-4">
-        <div className="max-w-6xl mx-auto space-y-4">
+      <div className="min-h-screen pt-32 pb-12 px-4">
+        <div className="max-w-6xl mx-auto space-y-4 pt-4">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
@@ -68,11 +68,13 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 bg-background">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+      <div className="max-w-6xl mx-auto space-y-6 pt-4">
         <div>
-          <h1 className="text-4xl font-bold mb-2">My Orders</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
+            My <span className="text-blue-500 dark:text-cyan-400">Orders</span>
+          </h1>
+          <p className="text-muted-foreground text-xl">
             {orders.length} {orders.length === 1 ? 'order' : 'orders'} total
           </p>
         </div>
@@ -80,7 +82,7 @@ export default function OrdersPage() {
         {orders.length > 0 ? (
           <div className="space-y-4">
             {orders.map((order) => (
-              <Card key={order._id} className="hover:shadow-lg transition-shadow">
+              <Card key={order._id} className="border-2 hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
@@ -100,12 +102,29 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4" />
-                          ${(order.amount || 0).toFixed(2)}
+                          ${(parseFloat(order.amount) || 0).toFixed(2)}
                         </div>
+                        {order.paymentMethod && (
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            {order.paymentMethod.toUpperCase()}
+                          </div>
+                        )}
+                        {order.verified && (
+                          <Badge variant="default" className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">
+                            ✓ Verified
+                          </Badge>
+                        )}
                         {order.status && (
                           <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
                             {order.status}
                           </Badge>
+                        )}
+                        {order.txHash && (
+                          <div className="flex items-center gap-2">
+                            <ExternalLink className="h-3 w-3" />
+                            <span className="font-mono text-xs">{order.txHash.slice(0, 10)}...{order.txHash.slice(-8)}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -132,7 +151,7 @@ export default function OrdersPage() {
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="border-2">
             <CardContent className="p-12 text-center">
               <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-lg font-medium mb-2">No orders yet</p>

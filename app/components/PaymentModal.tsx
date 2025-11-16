@@ -1,7 +1,9 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,7 +16,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CreditCard, Wallet, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-// import { formatEther, parseEther } from 'viem';
+import { sendArbitrumPayment, verifyArbitrumTransaction } from '@/lib/blockchain/arbitrum';
+import { sendSolanaPayment, verifySolanaTransaction } from '@/lib/blockchain/solana';
+import { convertEthToSol } from '@/lib/blockchain/payment';
 
 interface PaymentModalProps {
   open: boolean;
@@ -43,16 +47,15 @@ export function PaymentModal({
   boostFee,
 }: PaymentModalProps) {
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'select' | 'processing' | 'success'>('select');
+  const [step, setStep] = useState<'select' | 'processing' | 'verifying' | 'success'>('select');
   const [paymentMethod, setPaymentMethod] = useState<'eth' | 'sol'>('eth');
+  const [txHash, setTxHash] = useState<string>('');
+  const [solAmount, setSolAmount] = useState<string>('...');
   const { address, isConnected } = useAccount();
-  const { publicKey, connect, disconnect } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const { toast } = useToast();
-
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const router = useRouter();
 
   const amount = type === 'listing' 
     ? listingFee || '0.001' // Default 0.001 ETH for listing
@@ -60,16 +63,37 @@ export function PaymentModal({
     ? boostFee || (boostKeywords.length * 0.0005).toFixed(4) // 0.0005 ETH per keyword
     : (product.priceCents / 100).toString();
 
+  // Generate unique payment ID
+  const paymentId = `${type}-${product._id}-${Date.now()}`;
+
+  // Fetch SOL amount when component mounts or amount changes
+  useEffect(() => {
+    async function fetchSolAmount() {
+      try {
+        const sol = await convertEthToSol(amount);
+        setSolAmount(sol);
+      } catch (error) {
+        console.error('Failed to convert ETH to SOL:', error);
+        setSolAmount('Error');
+      }
+    }
+    if (open) {
+      fetchSolAmount();
+    }
+  }, [amount, open]);
+
   async function handlePayment() {
     setLoading(true);
     setStep('processing');
 
     try {
+      let transactionHash: string;
+
       if (paymentMethod === 'eth') {
-        if (!isConnected) {
+        if (!isConnected || !address) {
           toast({
             title: "Wallet Not Connected",
-            description: "Please connect your wallet first",
+            description: "Please connect your wallet (MetaMask or Gemini) first",
             variant: "destructive",
           });
           setStep('select');
@@ -77,37 +101,86 @@ export function PaymentModal({
           return;
         }
 
-        // For Arbitrum, we'd use writeContract with the payment contract
-        // This is a simplified version - you'd need to deploy a payment contract
         toast({
-          title: "Payment Processing",
+          title: "Processing Payment",
           description: "Please confirm the transaction in your wallet",
         });
 
-        // Simulate payment - in production, call your payment contract
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Send real Arbitrum transaction
+        transactionHash = await sendArbitrumPayment({
+          from: address,
+          amount,
+          paymentId,
+        });
+
+        setTxHash(transactionHash);
+        toast({
+          title: "Transaction Sent",
+          description: `Transaction hash: ${transactionHash.slice(0, 10)}...`,
+        });
       } else {
         // SOL payment via Phantom
-        if (!publicKey) {
-          await connect();
+        if (!publicKey || !signTransaction) {
           toast({
-            title: "Connecting Wallet",
-            description: "Please approve the connection",
+            title: "Wallet Not Connected",
+            description: "Please connect your Phantom wallet first",
+            variant: "destructive",
           });
+          setStep('select');
+          setLoading(false);
           return;
         }
 
-        // Calculate SOL equivalent (simplified - you'd fetch real-time rate)
-        const ethToSolRate = 0.00004; // Approximate, should fetch from API
-        const solAmount = (parseFloat(amount) * ethToSolRate).toFixed(6);
-
+        const calculatedSolAmount = await convertEthToSol(amount);
         toast({
-          title: "Payment Processing",
-          description: `Sending ${solAmount} SOL...`,
+          title: "Processing Payment",
+          description: `Sending ${calculatedSolAmount} SOL...`,
         });
 
-        // In production, use @solana/web3.js to send transaction
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Send real Solana transaction (conversion happens inside sendSolanaPayment)
+        transactionHash = await sendSolanaPayment(
+          {
+            from: publicKey,
+            amountEth: amount,
+            paymentId,
+          },
+          signTransaction,
+          connection
+        );
+
+        setTxHash(transactionHash);
+        toast({
+          title: "Transaction Sent",
+          description: `Transaction signature: ${transactionHash.slice(0, 10)}...`,
+        });
+      }
+
+      // Move to verification step
+      setStep('verifying');
+
+      // Verify transaction on backend
+      const verifyRes = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txHash: transactionHash,
+          paymentId,
+          productId: product._id,
+          amount,
+          paymentMethod,
+          type,
+          boostKeywords: type === 'boost' ? boostKeywords : undefined,
+        }),
+      });
+
+      if (!verifyRes.ok) {
+        throw new Error('Transaction verification failed');
+      }
+
+      const verifyData = await verifyRes.json();
+      
+      if (!verifyData.verified) {
+        throw new Error('Transaction not confirmed on blockchain');
       }
 
       // Confirm payment on backend
@@ -119,21 +192,73 @@ export function PaymentModal({
           amount,
           paymentMethod,
           type,
+          txHash: transactionHash,
           boostKeywords: type === 'boost' ? boostKeywords : undefined,
         }),
       });
 
       if (res.ok) {
-        setStep('success');
-        toast({
-          title: "Payment Successful!",
-          description: type === 'boost' ? "Product boosted successfully!" : "Payment confirmed.",
-        });
-        setTimeout(() => {
-          onOpenChange(false);
-          setStep('select');
-          onSuccess?.();
-        }, 2000);
+        // For listing type, create the product BEFORE showing success
+        if (type === 'listing' && onSuccess) {
+          try {
+            // Create product first
+            const productId = await onSuccess();
+            
+            if (!productId) {
+              throw new Error('Product creation returned no ID');
+            }
+            
+            // Small delay to ensure product is saved
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            setStep('success');
+            toast({
+              title: "Success!",
+              description: "Payment confirmed and listing created successfully!",
+            });
+            
+            // Redirect to seller dashboard after successful creation
+            setTimeout(() => {
+              onOpenChange(false);
+              router.push('/seller/dashboard');
+            }, 2000);
+          } catch (error: any) {
+            console.error('Error creating product after payment:', error);
+            setStep('select');
+            toast({
+              title: "Product Creation Failed",
+              description: error.message || "Payment was successful but product creation failed. Please try creating the listing again.",
+              variant: "destructive",
+            });
+            // Don't redirect - let user try again
+            return;
+          }
+        } else {
+          // For purchase and boost, show success immediately
+          setStep('success');
+          toast({
+            title: "Payment Successful!",
+            description: type === 'boost' ? "Product boosted successfully!" : "Payment confirmed.",
+          });
+          
+          // Redirect to payment success page
+          setTimeout(() => {
+            onOpenChange(false);
+            const params = new URLSearchParams({
+              txHash: transactionHash,
+              amount: amount,
+              paymentMethod: paymentMethod,
+              type: type,
+            });
+            
+            // Add product title if available
+            if (product.title) {
+              params.set('productTitle', product.title);
+            }
+            
+            router.push(`/payment-success?${params.toString()}`);
+          }, 1500);
+        }
       } else {
         throw new Error('Payment confirmation failed');
       }
@@ -151,7 +276,7 @@ export function PaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md bg-background border-2 shadow-2xl text-foreground">
+      <DialogContent className="sm:max-w-md bg-background border-2 shadow-2xl text-foreground" style={{ backgroundColor: 'hsl(var(--background))' }}>
         {step === 'select' && (
           <>
             <DialogHeader>
@@ -169,70 +294,71 @@ export function PaymentModal({
                 <TabsTrigger value="eth" className="cursor-pointer">Arbitrum (ETH)</TabsTrigger>
                 <TabsTrigger value="sol" className="cursor-pointer">Solana (SOL)</TabsTrigger>
               </TabsList>
-                      <TabsContent value="eth" className="space-y-4">
-                        <div className="p-4 border-2 rounded-lg bg-muted/30">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Wallet className="h-5 w-5 text-primary" />
-                            <span className="font-semibold">Arbitrum Network</span>
-                          </div>
-                          {isConnected ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                <span className="text-sm font-medium">Wallet Connected</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
-                                {address?.slice(0, 8)}...{address?.slice(-6)}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
-                              Please connect your wallet to continue
-                            </div>
-                          )}
-                          <div className="mt-4 p-3 bg-background rounded-lg border">
-                            <div className="text-xs text-muted-foreground mb-1">Amount</div>
-                            <div className="text-2xl font-bold">{amount} ETH</div>
-                          </div>
-                        </div>
-                      </TabsContent>
-                      <TabsContent value="sol" className="space-y-4">
-                        <div className="p-4 border-2 rounded-lg bg-muted/30">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Wallet className="h-5 w-5 text-primary" />
-                            <span className="font-semibold">Solana Network</span>
-                          </div>
-                          {publicKey ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                <span className="text-sm font-medium">Phantom Connected</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
-                                {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-6)}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
-                              Connect Phantom wallet to continue
-                            </div>
-                          )}
-                          <div className="mt-4 p-3 bg-background rounded-lg border">
-                            <div className="text-xs text-muted-foreground mb-1">Amount</div>
-                            <div className="text-2xl font-bold">
-                              {(parseFloat(amount) * 0.00004).toFixed(6)} SOL
-                            </div>
-                          </div>
-                        </div>
-                      </TabsContent>
+              <TabsContent value="eth" className="space-y-4">
+                <div className="p-4 border-2 rounded-lg bg-muted">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <span className="font-semibold">Arbitrum Network (Local)</span>
+                  </div>
+                  {isConnected ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span className="text-sm font-medium">Wallet Connected</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
+                        {address?.slice(0, 8)}...{address?.slice(-6)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
+                      Please connect your wallet (MetaMask or Gemini) to continue
+                    </div>
+                  )}
+                  <div className="mt-4 p-3 bg-background rounded-lg border">
+                    <div className="text-xs text-muted-foreground mb-1">Amount</div>
+                    <div className="text-2xl font-bold">{amount} ETH</div>
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="sol" className="space-y-4">
+                <div className="p-4 border-2 rounded-lg bg-muted">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <span className="font-semibold">Solana Network (Local)</span>
+                  </div>
+                  {publicKey ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span className="text-sm font-medium">Phantom Connected</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground font-mono bg-background p-2 rounded border">
+                        {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-6)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground bg-background p-3 rounded border">
+                      Connect Phantom wallet to continue
+                    </div>
+                  )}
+                  <div className="mt-4 p-3 bg-background rounded-lg border">
+                    <div className="text-xs text-muted-foreground mb-1">Amount</div>
+                    <div className="text-2xl font-bold">{solAmount} SOL</div>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={handlePayment} disabled={loading || (paymentMethod === 'eth' && !isConnected) || (paymentMethod === 'sol' && !publicKey)}>
+              <Button 
+                onClick={handlePayment} 
+                disabled={loading || (paymentMethod === 'eth' && !isConnected) || (paymentMethod === 'sol' && !publicKey)}
+              >
                 <CreditCard className="mr-2 h-4 w-4" />
-                Pay {amount} {paymentMethod === 'eth' ? 'ETH' : 'SOL'}
+                Pay {paymentMethod === 'eth' ? `${amount} ETH` : `${solAmount} SOL`}
               </Button>
             </DialogFooter>
           </>
@@ -242,7 +368,15 @@ export function PaymentModal({
           <div className="py-8 text-center">
             <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-medium">Processing payment...</p>
-            <p className="text-sm text-muted-foreground mt-2">Please wait</p>
+            <p className="text-sm text-muted-foreground mt-2">Please confirm in your wallet</p>
+          </div>
+        )}
+
+        {step === 'verifying' && (
+          <div className="py-8 text-center">
+            <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin" />
+            <p className="text-lg font-medium">Verifying transaction...</p>
+            <p className="text-xs text-muted-foreground mt-2 font-mono break-all">{txHash}</p>
           </div>
         )}
 
@@ -253,6 +387,11 @@ export function PaymentModal({
             <p className="text-sm text-muted-foreground mt-2">
               {type === 'boost' ? 'Your product has been boosted!' : 'Your order has been confirmed'}
             </p>
+            {txHash && (
+              <p className="text-xs text-muted-foreground mt-4 font-mono break-all">
+                TX: {txHash.slice(0, 20)}...
+              </p>
+            )}
           </div>
         )}
       </DialogContent>

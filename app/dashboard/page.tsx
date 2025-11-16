@@ -18,8 +18,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/');
-    if (session?.user) {
+    // Wait for session to load before redirecting
+    if (status === 'loading') {
+      return;
+    }
+    
+    if (status === 'unauthenticated' || !session?.user) {
+      router.push('/');
+      return;
+    }
+    
+    if (status === 'authenticated' && session?.user) {
       fetch('/api/users/stats')
         .then((r) => r.json())
         .then((data) => {
@@ -52,12 +61,14 @@ export default function DashboardPage() {
   const isSeller = user.role === 'seller';
 
   return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Welcome Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-4">
           <div className="text-center md:text-left">
-            <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">Dashboard</h1>
+            <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight">
+              <span className="text-blue-500 dark:text-cyan-400">Dash</span>board
+            </h1>
             <p className="text-muted-foreground text-xl">Welcome back, {user.email?.split('@')[0]}</p>
           </div>
           <div className="flex gap-3 justify-center md:justify-end">

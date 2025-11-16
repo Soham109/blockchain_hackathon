@@ -124,11 +124,11 @@ export default function ReviewSection({ productId }: { productId: string }) {
 
   return (
     <Card className="mt-8 border-2 shadow-sm">
-      <CardHeader className="bg-muted/20">
+      <CardHeader className="bg-muted">
         <CardTitle className="text-3xl font-bold">Reviews & Ratings</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
-        <div className="mb-6 p-4 bg-muted/30 rounded-xl border-2">
+        <div className="mb-6 p-4 bg-muted rounded-xl border-2">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <StarRating rating={Math.round(averageRating)} readonly />
@@ -178,7 +178,7 @@ export default function ReviewSection({ productId }: { productId: string }) {
             </div>
           ) : (
             reviews.map((review) => (
-              <div key={review._id} className="p-5 bg-muted/20 rounded-xl border-2 hover:bg-muted/30 transition-colors">
+              <div key={review._id} className="p-5 bg-muted rounded-xl border-2 hover:bg-muted transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">

@@ -19,13 +19,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Populate product details
+    // Populate product details and payment info
     const ordersWithProducts = await Promise.all(
       orders.map(async (order) => {
-        const product = await db.collection('products').findOne({ _id: order.productId });
+        const { ObjectId } = require('mongodb');
+        const productId = typeof order.productId === 'string' ? new ObjectId(order.productId) : order.productId;
+        const product = await db.collection('products').findOne({ _id: productId });
+        
+        // Find related payment record
+        const payment = await db.collection('payments').findOne({
+          userId: userId,
+          productId: productId,
+          type: 'purchase',
+        });
+        
         return {
           ...order,
           productTitle: product?.title || 'Unknown Product',
+          paymentMethod: payment?.paymentMethod || order.paymentMethod,
+          txHash: payment?.txHash || null,
+          verified: payment?.verified || false,
         };
       })
     );

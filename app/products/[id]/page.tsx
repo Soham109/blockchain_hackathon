@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Heart, MessageCircle, MapPin, Calendar, Package, CreditCard, ArrowRight } from 'lucide-react';
+import { Heart, MessageCircle, MapPin, Calendar, Package, CreditCard, ArrowRight, Star, Shield, TrendingUp, Tag } from 'lucide-react';
 import ReviewSection from '../../components/ReviewSection';
 import ImageGallery from '../../components/ui/ImageGallery';
 import { useToast } from '@/components/ui/use-toast';
@@ -129,122 +129,139 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   const price = product.price || (product.priceCents / 100).toFixed(2);
+  const conditionLabels: Record<string, string> = {
+    excellent: 'Excellent',
+    'very-good': 'Very Good',
+    good: 'Good',
+    fair: 'Fair',
+    poor: 'Poor',
+  };
 
   return (
-    <main className="min-h-screen pt-32 pb-12 px-4 bg-background">
-      <div className="max-w-7xl mx-auto space-y-8 pt-4">
-        {/* Main Product Section - Clean Unified Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Left: Images */}
-          <div>
+    <main className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
+      <div className="max-w-7xl mx-auto space-y-4 pt-4">
+        {/* Main Product Section - Compact Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left: Images - Takes 2 columns */}
+          <div className="lg:col-span-2">
             {product.images && product.images.length > 0 ? (
               <div className="sticky top-32">
                 <ImageGallery images={product.images} />
               </div>
             ) : (
-              <div className="w-full h-[600px] bg-muted rounded-2xl flex items-center justify-center border">
+              <div className="w-full h-[400px] bg-muted rounded-xl flex items-center justify-center border-2">
                 <Package className="h-24 w-24 text-muted-foreground" />
               </div>
             )}
           </div>
 
-          {/* Right: Product Info */}
-          <div className="space-y-8">
+          {/* Right: Product Info - Compact Sidebar */}
+          <div className="space-y-3">
             {/* Title and Price */}
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2 tracking-tight leading-tight">
                 {product.title}
               </h1>
               
-              <div className="flex items-baseline gap-4 mb-8">
-                <div className="text-6xl font-bold">
+              {/* Price */}
+              <div className="flex items-baseline gap-3 mb-3">
+                <div className="text-3xl font-bold text-primary">
                   ${price}
                 </div>
                 {product.status === 'sold' && (
-                  <Badge variant="destructive" className="text-base px-4 py-2">SOLD</Badge>
+                  <Badge variant="destructive" className="text-xs px-2 py-0.5">SOLD</Badge>
                 )}
               </div>
 
-              {/* Meta Info */}
-              <div className="flex flex-wrap gap-3 mb-8">
+              {/* Quick Info Badges */}
+              <div className="flex flex-wrap gap-2 mb-3">
                 {product.category && (
-                  <Badge variant="secondary" className="capitalize px-4 py-2 text-sm">
+                  <Badge variant="secondary" className="capitalize text-xs px-2 py-0.5">
+                    <Tag className="h-3 w-3 mr-1" />
                     {product.category}
                   </Badge>
                 )}
-                {product.location && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{product.location}</span>
-                  </div>
+                {product.condition && (
+                  <Badge variant="outline" className="text-xs px-2 py-0.5">
+                    <Shield className="h-3 w-3 mr-1" />
+                    {conditionLabels[product.condition] || product.condition}
+                  </Badge>
                 )}
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(product.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Seller Info */}
-              <div className="mb-8 p-5 bg-muted/30 rounded-xl">
-                <p className="text-sm text-muted-foreground mb-2">Listed by</p>
-                <Link href={`/profile/${product.sellerId}`} className="flex items-center gap-2 group">
-                  <span className="font-semibold text-xl group-hover:text-primary transition-colors">
-                    {product.sellerEmail?.split('@')[0] || 'student'}
-                  </span>
-                  <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
+                {product.brand && (
+                  <Badge variant="outline" className="text-xs px-2 py-0.5">
+                    {product.brand}
+                  </Badge>
+                )}
               </div>
             </div>
 
-            {/* Description */}
-            <div className="p-6 bg-muted/20 rounded-xl">
-              <h2 className="font-bold text-xl mb-4">Description</h2>
-              <p className="text-foreground leading-relaxed text-lg">
-                {product.description || 'No description available'}
-              </p>
-            </div>
+            {/* Description - Prominent */}
+            {product.description && (
+              <Card className="border-2 bg-muted shadow-sm">
+                <CardContent className="p-4">
+                  <h2 className="font-semibold text-xs mb-2.5 text-muted-foreground uppercase tracking-wider">
+                    About This Item
+                  </h2>
+                  <p className="text-foreground leading-relaxed whitespace-pre-wrap text-sm line-clamp-6">
+                    {product.description}
+                  </p>
+                  {product.description.length > 200 && (
+                    <button
+                      onClick={(e) => {
+                        const p = e.currentTarget.previousElementSibling as HTMLElement;
+                        if (p) {
+                          p.classList.toggle('line-clamp-6');
+                          e.currentTarget.textContent = p.classList.contains('line-clamp-6') ? 'Show more' : 'Show less';
+                        }
+                      }}
+                      className="text-xs text-primary hover:underline mt-2 font-medium"
+                    >
+                      Show more
+                    </button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Action Buttons */}
-            <div className="space-y-4 pt-4">
+            <div className="space-y-2 pt-2 border-t">
               {session?.user && session.user.email !== product.sellerEmail ? (
                 <>
                   {product.status !== 'sold' && (
                     <Button 
                       onClick={() => setPaymentOpen(true)}
                       size="lg"
-                      className="w-full h-16 text-lg font-semibold shadow-lg hover:shadow-xl transition-all bg-primary hover:bg-primary/90"
+                      className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
                     >
-                      <CreditCard className="h-5 w-5 mr-2" />
+                      <CreditCard className="h-4 w-4 mr-2" />
                       Buy Now
                     </Button>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button 
                       onClick={() => router.push(`/chat?productId=${product._id}&receiverEmail=${product.sellerEmail}&receiverId=${product.sellerId}&productTitle=${encodeURIComponent(product.title)}`)}
                       variant="outline"
-                      size="lg"
-                      className="h-14 border-2 hover:bg-accent"
+                      size="sm"
+                      className="h-9 border-2 text-sm"
                     >
-                      <MessageCircle className="h-5 w-5 mr-2" />
-                      Contact
+                      <MessageCircle className="h-4 w-4 mr-1" />
+                      Message
                     </Button>
                     <Button
                       variant="outline"
                       onClick={toggleWishlist}
                       disabled={wishlistLoading}
-                      size="lg"
-                      className="h-14 border-2 hover:bg-accent"
+                      size="sm"
+                      className="h-9 border-2 text-sm"
                     >
-                      <Heart className={`h-5 w-5 mr-2 ${isWishlisted ? 'fill-current text-red-500' : ''}`} />
+                      <Heart className={`h-4 w-4 mr-1 ${isWishlisted ? 'fill-current text-red-500' : ''}`} />
                       {isWishlisted ? 'Saved' : 'Save'}
                     </Button>
                   </div>
                 </>
               ) : session?.user && session.user.email === product.sellerEmail ? (
                 <Link href={`/products/${product._id}/edit`}>
-                  <Button variant="outline" size="lg" className="w-full h-14 border-2">
+                  <Button variant="outline" size="lg" className="w-full h-11 border-2">
                     Edit Listing
                   </Button>
                 </Link>
@@ -252,25 +269,74 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <Button 
                   onClick={() => router.push('/auth/signin')}
                   size="lg"
-                  className="w-full h-16 text-lg font-semibold shadow-lg hover:shadow-xl transition-all bg-primary hover:bg-primary/90"
+                  className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
                 >
                   Sign In to Purchase
                 </Button>
               )}
             </div>
+
+            {/* Product Details - Compact */}
+            <Card className="border-2">
+              <CardContent className="p-3 space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    Location
+                  </span>
+                  <span className="font-medium text-right">{product.location || 'Not specified'}</span>
+                </div>
+                {product.brand && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Brand</span>
+                    <span className="font-medium">{product.brand}</span>
+                  </div>
+                )}
+                {product.year && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Year/Model</span>
+                    <span className="font-medium">{product.year}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Listed
+                  </span>
+                  <span className="font-medium">
+                    {new Date(product.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-2 border-t">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Package className="h-3.5 w-3.5" />
+                    Seller
+                  </span>
+                  <Link href={`/profile/${product.sellerId}`} className="font-medium hover:text-primary transition-colors">
+                    {product.sellerEmail?.split('@')[0] || 'student'}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         {/* Product Boost Section */}
         {session?.user && session.user.email === product.sellerEmail && (
-          <ProductBoost productId={id} />
+          <div className="pt-2">
+            <ProductBoost productId={id} />
+          </div>
         )}
 
         {/* Reviews Section */}
-        <ReviewSection productId={id} />
+        <div className="pt-2">
+          <ReviewSection productId={id} />
+        </div>
 
         {/* Recommendations */}
-        <ProductRecommendations currentProductId={id} />
+        <div className="pt-2">
+          <ProductRecommendations currentProductId={id} />
+        </div>
       </div>
 
       {product && (
@@ -279,9 +345,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           onOpenChange={setPaymentOpen}
           product={product}
           type="purchase"
-          onSuccess={() => {
-            router.push('/orders');
-          }}
         />
       )}
     </main>

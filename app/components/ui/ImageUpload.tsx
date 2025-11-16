@@ -15,6 +15,62 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Compress image using canvas
+  async function compressImage(file: File, maxWidth: number = 1920, maxHeight: number = 1920, quality: number = 0.8): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate new dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to data URL with compression
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // If still too large, reduce quality further
+          if (dataUrl.length > 500 * 1024) { // 500KB limit per image
+            const reducedQuality = Math.max(0.3, quality - 0.2);
+            const compressed = canvas.toDataURL('image/jpeg', reducedQuality);
+            resolve(compressed);
+          } else {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -27,16 +83,45 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
       const newImages: string[] = [];
       for (const file of filesToUpload) {
         if (file.type.startsWith('image/')) {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target?.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          newImages.push(dataUrl);
+          // Validate file size (max 10MB before compression)
+          if (file.size > 10 * 1024 * 1024) {
+            console.warn(`File ${file.name} is too large (max 10MB before compression)`);
+            continue;
+          }
+          
+          try {
+            // Compress image before converting to data URL
+            const compressedDataUrl = await compressImage(file);
+            
+            if (compressedDataUrl && compressedDataUrl.length > 0) {
+              newImages.push(compressedDataUrl);
+            }
+          } catch (error) {
+            console.error(`Failed to compress image ${file.name}:`, error);
+            // Fallback to original if compression fails
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const result = e.target?.result as string;
+                if (result && result.length > 0) {
+                  resolve(result);
+                } else {
+                  reject(new Error('Failed to read file'));
+                }
+              };
+              reader.onerror = () => reject(new Error('Failed to read file'));
+              reader.readAsDataURL(file);
+            });
+            if (dataUrl && dataUrl.length > 0) {
+              newImages.push(dataUrl);
+            }
+          }
         }
       }
-      onChange([...images, ...newImages]);
+      
+      if (newImages.length > 0) {
+        onChange([...images, ...newImages]);
+      }
     } catch (error) {
       console.error('Upload error:', error);
     } finally {

@@ -98,11 +98,14 @@ function BrowseContent() {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
+    <div className="min-h-screen pt-32 pb-12 px-4 bg-background transition-all duration-300 page-transition">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 pt-4">
-          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">Browse Marketplace</h1>
+          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">
+            <span className="text-blue-500 dark:text-cyan-400">Browse</span>{' '}
+            <span>Marketplace</span>
+          </h1>
           <p className="text-muted-foreground mb-6">
             {products.length} items available
           </p>

@@ -51,7 +51,7 @@ export function ProductCard({
             </div>
           )}
           {product.status === 'sold' && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
               <Badge variant="destructive" className="text-lg px-4 py-2">SOLD</Badge>
             </div>
           )}
@@ -62,7 +62,7 @@ export function ProductCard({
                 e.stopPropagation();
                 onWishlistToggle(product._id);
               }}
-              className="absolute top-2 left-2 z-20 p-2 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-colors shadow-sm"
+              className="absolute top-2 left-2 z-20 p-2 rounded-full bg-background hover:bg-background transition-colors shadow-sm border"
             >
               <Heart
                 className={cn(

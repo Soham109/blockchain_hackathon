@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ShoppingBag, User, LogOut, Store, LayoutDashboard, Menu, X, MessageCircle, Heart, Search, RotateCcw, Bell, Settings, Sun, Moon } from 'lucide-react';
+import { ShoppingBag, User, LogOut, Store, LayoutDashboard, Menu, X, MessageCircle, Heart, Search, RotateCcw, Bell, Settings, Sun, Moon, CreditCard, Package } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,20 +109,32 @@ export default function Navbar() {
       const res = await fetch('/api/user/toggle-role', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
+        // Update session first
         await update();
+        
+        // Fetch updated user profile
+        const userId = (session?.user as any)?.id;
+        if (userId) {
+          const profileRes = await fetch(`/api/users/${userId}`);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            setUserProfile(profileData.user);
+          }
+        }
+        
         toast({
           title: "Role Switched",
           description: `You are now a ${data.role}`,
         });
-        const userId = (session?.user as any)?.id;
-        if (userId) {
-          const res = await fetch(`/api/users/${userId}`);
-          if (res.ok) {
-            const data = await res.json();
-            setUserProfile(data.user);
+        
+        // Navigate to appropriate dashboard without reloading
+        setTimeout(() => {
+          if (data.role === 'seller') {
+            router.push('/seller/dashboard');
+          } else {
+            router.push('/dashboard');
           }
-        }
-        window.location.reload();
+        }, 300);
       } else {
         throw new Error(data.error || 'Failed to toggle role');
       }
@@ -154,8 +166,8 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300 ${
-      scrolled ? 'shadow-2xl bg-background/90' : ''
+    <nav className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl rounded-2xl border-2 bg-background shadow-lg transition-all duration-300 ${
+      scrolled ? 'shadow-2xl' : ''
     }`}>
       <div className="flex h-16 items-center px-4 md:px-6">
         {/* Logo */}
@@ -265,7 +277,7 @@ export default function Navbar() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 cursor-pointer border-2 border-transparent hover:border-primary/30 transition-all">
-                    <Avatar className="h-10 w-10 border-2 border-primary/20">
+                    <Avatar className="h-10 w-10 border-2 border-primary/40">
                       <AvatarImage src={userProfile?.avatar || user?.avatar} alt={user?.email} />
                       <AvatarFallback className="text-sm font-bold">
                         {user?.email?.[0]?.toUpperCase() || <User className="h-4 w-4" />}
@@ -273,11 +285,11 @@ export default function Navbar() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 bg-background border-2 shadow-lg">
+                <DropdownMenuContent align="end" className="w-64 bg-background border-2 shadow-lg" style={{ backgroundColor: 'hsl(var(--background))' }}>
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-2">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 border-2 border-primary/20">
+                        <Avatar className="h-12 w-12 border-2 border-primary/40">
                           <AvatarImage src={userProfile?.avatar || user?.avatar} alt={user?.email} />
                           <AvatarFallback className="text-lg font-bold">
                             {user?.email?.[0]?.toUpperCase() || <User className="h-5 w-5" />}
@@ -302,6 +314,18 @@ export default function Navbar() {
                     <DropdownMenuItem className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       View Profile
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/orders">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Package className="mr-2 h-4 w-4" />
+                      My Orders
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/payments">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Payment History
                     </DropdownMenuItem>
                   </Link>
                   <Link href="/settings">
@@ -351,7 +375,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && session?.user && (
-        <div className="md:hidden border-t-2 bg-background/95 backdrop-blur-sm rounded-b-2xl">
+        <div className="md:hidden border-t-2 bg-background rounded-b-2xl">
           <div className="px-4 py-3 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

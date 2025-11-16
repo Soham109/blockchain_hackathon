@@ -28,7 +28,7 @@ export function ConnectWallet() {
           {isConnected || publicKey ? 'Wallet Connected' : 'Connect Wallet'}
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-background border-2 shadow-2xl text-foreground max-w-md">
+      <DialogContent className="bg-background border-2 shadow-2xl text-foreground max-w-md" style={{ backgroundColor: 'hsl(var(--background))' }}>
         <DialogHeader className="space-y-3">
           <DialogTitle className="text-2xl font-bold text-center">Connect Wallet</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground">
@@ -43,10 +43,12 @@ export function ConnectWallet() {
             </TabsList>
             <TabsContent value="eth" className="space-y-3 mt-4">
               {isConnected ? (
-                <div className="p-5 border-2 rounded-xl bg-muted/30 border-green-500/30">
+                <div className="p-5 border-2 rounded-xl bg-muted border-green-500/50">
                   <div className="flex items-center gap-2.5 mb-3">
                     <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">Connected to Arbitrum</p>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      Connected to Arbitrum ({connector?.name || 'Wallet'})
+                    </p>
                   </div>
                   <p className="text-xs text-muted-foreground mb-4 break-all font-mono bg-background p-3 rounded-lg border-2">
                     {address}
@@ -57,23 +59,56 @@ export function ConnectWallet() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {connectors.map((connector) => (
-                    <Button
-                      key={connector.uid}
-                      variant="outline"
-                      className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary/50 transition-all shadow-sm hover:shadow-md"
-                      onClick={() => connect({ connector })}
-                    >
-                      <Wallet className="mr-3 h-5 w-5" />
-                      <span className="font-medium">{connector.name}</span>
-                    </Button>
-                  ))}
+                  {connectors
+                    .filter((connector) => {
+                      const name = connector.name.toLowerCase();
+                      // Show MetaMask first, then injected wallets (Gemini)
+                      return name.includes('metamask') || name.includes('injected') || name.includes('browser');
+                    })
+                    .map((connector) => {
+                      const name = connector.name.toLowerCase();
+                      const isMetaMask = name.includes('metamask');
+                      const isGemini = typeof window !== 'undefined' && 
+                        window.ethereum && 
+                        (window.ethereum.isGemini || window.ethereum.providers?.some((p: any) => p.isGemini));
+                      
+                      let displayName = 'Browser Wallet';
+                      if (isMetaMask) {
+                        displayName = 'MetaMask';
+                      } else if (isGemini) {
+                        displayName = 'Gemini Wallet';
+                      }
+                      
+                      return (
+                        <Button
+                          key={connector.uid}
+                          variant="outline"
+                          className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary transition-all shadow-sm hover:shadow-md"
+                          onClick={() => connect({ connector })}
+                        >
+                          <Wallet className="mr-3 h-5 w-5" />
+                          <span className="font-medium">{displayName}</span>
+                          {isMetaMask && (
+                            <span className="ml-auto text-xs text-muted-foreground">(Recommended for testing)</span>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  {connectors.filter((c) => {
+                    const name = c.name.toLowerCase();
+                    return name.includes('metamask') || name.includes('injected') || name.includes('browser');
+                  }).length === 0 && (
+                    <div className="p-4 border-2 rounded-lg bg-muted text-center">
+                      <p className="text-sm text-muted-foreground mb-2">No wallet detected</p>
+                      <p className="text-xs text-muted-foreground">Please install MetaMask or Gemini Wallet extension</p>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>
             <TabsContent value="sol" className="space-y-3 mt-4">
               {publicKey ? (
-                <div className="p-5 border-2 rounded-xl bg-muted/30 border-green-500/30">
+                <div className="p-5 border-2 rounded-xl bg-muted border-green-500/50">
                   <div className="flex items-center gap-2.5 mb-3">
                     <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
                     <p className="text-sm font-semibold text-green-600 dark:text-green-400">Connected to Solana</p>

@@ -3,6 +3,15 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { getDb } from '@/lib/mongodb';
 
+// Increase body size limit for image uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const db = await getDb();
 
@@ -71,24 +80,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session: any = await getServerSession(req, res, authOptions as any);
     if (!session?.user?.id) return res.status(401).json({ error: 'Not authenticated' });
 
-    const { title, description, priceCents, images, category, location, sellerEmail } = req.body as any;
+    const { title, description, priceCents, images, category, location, condition, brand, year, sellerEmail } = req.body as any;
     if (!title || !priceCents) return res.status(400).json({ error: 'title and priceCents required' });
+    if (!images || images.length === 0) return res.status(400).json({ error: 'At least one image is required' });
+
+    // Validate and filter images
+    const validImages = Array.isArray(images) 
+      ? images.filter((img: string) => img && typeof img === 'string' && img.length > 0 && img.startsWith('data:image'))
+      : [];
+    
+    if (validImages.length === 0) {
+      return res.status(400).json({ error: 'At least one valid image is required' });
+    }
+
+    // Check total size of images (base64 data URLs can be large)
+    const totalSize = validImages.reduce((sum: number, img: string) => sum + img.length, 0);
+    // Base64 is ~33% larger than binary, so 10MB binary ≈ 13.3MB base64
+    // MongoDB document limit is 16MB, so we'll limit to ~12MB total for safety
+    if (totalSize > 12 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Total image size too large. Please use smaller images or fewer images.' });
+    }
 
     const now = new Date();
     const doc = { 
       title, 
       description: description || '', 
       priceCents: Number(priceCents), 
-      images: images || [], 
+      images: validImages, 
       category: category || '', 
       location: location || '',
+      condition: condition || 'good',
+      brand: brand || undefined,
+      year: year || undefined,
       sellerId: String(session.user.id),
       sellerEmail: sellerEmail || session.user.email,
+      status: 'active',
       createdAt: now 
     };
-    const result = await db.collection('products').insertOne(doc);
-    res.status(201).json({ ok: true, id: result.insertedId, product: doc });
-    return;
+    
+    try {
+      const result = await db.collection('products').insertOne(doc);
+      if (!result.insertedId) {
+        return res.status(500).json({ error: 'Failed to create product' });
+      }
+      return res.status(201).json({ ok: true, id: String(result.insertedId), product: doc });
+    } catch (dbError: any) {
+      console.error('Database error creating product:', dbError);
+      // Check if it's a size issue
+      if (dbError.message && dbError.message.includes('too large')) {
+        return res.status(400).json({ error: 'Images are too large. Please use smaller images.' });
+      }
+      return res.status(500).json({ error: 'Failed to create product: ' + (dbError.message || 'Database error') });
+    }
   }
 
   res.setHeader('Allow', 'GET,POST');

@@ -10,10 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session?.user?.id) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    const { productId, amount, paymentMethod, type, boostKeywords } = req.body;
+    const { productId, amount, paymentMethod, type, boostKeywords, txHash } = req.body;
 
-    if (!productId || !amount) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!productId || !amount || !txHash) {
+      return res.status(400).json({ error: 'Missing required fields (productId, amount, txHash)' });
     }
 
     const db = await getDb();
@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
 
-      // Create payment record
+      // Create payment record with transaction hash
       await db.collection('payments').insertOne({
         userId,
         productId,
@@ -60,6 +60,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         paymentMethod,
         type: 'boost',
         keywords: boostKeywords,
+        txHash,
+        verified: true,
         createdAt: new Date(),
       });
 
@@ -67,13 +69,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (type === 'listing') {
-      // Listing fee already paid, product should be created
+      // Listing fee already paid, product will be created after this
+      // Use the productId provided (might be 'new' temporarily)
       await db.collection('payments').insertOne({
         userId,
-        productId,
+        productId, // This might be 'new' temporarily, will be updated after product creation
         amount,
         paymentMethod,
         type: 'listing',
+        txHash,
+        verified: true,
         createdAt: new Date(),
       });
 
@@ -98,12 +103,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amount,
       paymentMethod,
       type: 'purchase',
+      txHash,
+      verified: true,
       createdAt: new Date(),
     });
 
     // Mark product as sold
+    const { ObjectId } = require('mongodb');
+    const productObjectId = typeof productId === 'string' ? new ObjectId(productId) : productId;
     await db.collection('products').updateOne(
-      { _id: productId },
+      { _id: productObjectId },
       { $set: { status: 'sold', soldAt: new Date() } }
     );
 

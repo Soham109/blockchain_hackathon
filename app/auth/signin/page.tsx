@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ function SignInContent() {
   const [showVerified, setShowVerified] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, update } = useSession();
   
   useEffect(() => {
     if (searchParams?.get('verified') === 'true') {
@@ -65,8 +66,31 @@ function SignInContent() {
     try {
       const res = await signIn('credentials', { redirect: false, email, password });
       if ((res as any)?.ok) {
-        // Check if user needs to verify email or complete onboarding
-        router.push('/dashboard');
+        // Update session to get latest user data
+        await update();
+        
+        // Fetch user data to check verification status
+        try {
+          // Get user ID from the response or fetch current user
+          const userRes = await fetch('/api/users/current');
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            const user = userData.user;
+            
+            // If user is not student verified, redirect to onboarding
+            if (!user?.studentVerified) {
+              router.push('/onboarding');
+            } else {
+              router.push('/dashboard');
+            }
+          } else {
+            // Fallback: redirect to onboarding (new users need onboarding)
+            router.push('/onboarding');
+          }
+        } catch {
+          // Fallback: redirect to onboarding
+          router.push('/onboarding');
+        }
       } else {
         setError('Invalid email or password. Make sure your email is verified.');
       }
@@ -100,7 +124,7 @@ function SignInContent() {
           </CardHeader>
           <CardContent>
             {showVerified && (
-              <Alert className="mb-4 border-emerald-500/50 bg-emerald-500/10">
+              <Alert className="mb-4 border-emerald-500/50 bg-emerald-500/20">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <AlertDescription className="text-emerald-700 dark:text-emerald-400">
                   Email verified successfully! You can now sign in.
