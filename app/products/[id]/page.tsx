@@ -1,25 +1,65 @@
-import React from 'react';
+"use client";
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Loading from '../../components/ui/Loading';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Link from 'next/link';
 
-async function fetchProduct(id: string) {
-  const res = await fetch(`/api/products/${id}`);
-  return res.json();
-}
+export default function ProductPage({ params }: any) {
+  const { id } = params;
+  const { data: session } = useSession();
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
-  const data = await fetchProduct(params.id);
-  const p = data?.product;
-  if (!p) return <div className="min-h-screen flex items-center justify-center">Not found</div>;
+  useEffect(() => {
+    fetch(`/api/products/${id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setProduct(d.product);
+        setLoading(false);
+      })
+      .catch((e) => {
+        console.error('Failed to load product', e);
+        setLoading(false);
+      });
+  }, [id]);
+
+  if (loading) return <Loading fullscreen message="Loading product..." />;
+  if (!product) return <div className="p-8">Product not found</div>;
+
+  const price = product.price || (product.priceCents / 100).toFixed(2);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white py-12">
-      <div className="max-w-4xl mx-auto px-4 bg-white/5 p-6 rounded">
-        <h1 className="text-2xl font-bold">{p.title}</h1>
-        <div className="mt-4 text-slate-300">{p.description}</div>
-        <div className="mt-6 font-bold text-xl">${(p.priceCents/100).toFixed(2)}</div>
-        <div className="mt-6">
-          <button className="bg-indigo-600 px-4 py-2 rounded">Contact Seller</button>
-        </div>
+    <main className="min-h-screen px-6 py-12">
+      <div className="mx-auto max-w-4xl">
+        <Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="col-span-2">
+              <h1 className="text-2xl font-bold mb-2">{product.title}</h1>
+              <p className="text-slate-300 mb-4">{product.description}</p>
+              <div className="text-sm text-slate-400 mb-2">Category: {product.category}</div>
+              {product.location && <div className="text-sm text-slate-400 mb-2">Location: {product.location}</div>}
+            </div>
+
+            <aside className="p-4 bg-zinc-900/30 rounded">
+              <div className="text-3xl font-bold text-indigo-400 mb-2">${price}</div>
+              <div className="text-sm text-slate-400 mb-4">Listed by {product.sellerEmail || 'student'}</div>
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => router.push('/browse')}>Contact Seller</Button>
+                {session?.user && session.user.email === product.sellerEmail && (
+                  <Link href={`/products/${product._id}/edit`}>
+                    <Button variant="ghost">Edit Listing</Button>
+                  </Link>
+                )}
+              </div>
+            </aside>
+          </div>
+        </Card>
       </div>
-    </div>
+    </main>
   );
 }
+

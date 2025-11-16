@@ -1,6 +1,11 @@
 "use client";
 import React from 'react';
-import clsx from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export default function Card({
   children,
@@ -15,9 +20,9 @@ export default function Card({
 }) {
   return (
     <div
-      className={clsx(
-        'rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm p-6',
-        hoverable && 'transition-all hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/20',
+      className={cn(
+        'glass-panel rounded-2xl p-6 transition-all duration-300',
+        hoverable && 'hover:-translate-y-1 hover:shadow-2xl hover:shadow-violet-500/10 cursor-pointer',
         className
       )}
       {...props}

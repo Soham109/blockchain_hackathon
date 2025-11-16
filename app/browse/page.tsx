@@ -108,7 +108,7 @@ export default function BrowsePage() {
               {session?.user ? (
                 <>
                   Be the first to list something!{' '}
-                  <Link href="/seller/products/create" className="text-indigo-400 hover:underline">
+                  <Link href="/list-item" className="text-indigo-400 hover:underline">
                     Create a listing
                   </Link>
                 </>

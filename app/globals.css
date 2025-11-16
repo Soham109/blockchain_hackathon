@@ -1,34 +1,64 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0b1221;
-  --foreground: #e6eef8;
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #f7fafc;
-    --foreground: #0b1221;
-  }
+:root {
+  --background: #09090b; /* Zinc 950 */
+  --foreground: #fafafa;
+  --primary: #8b5cf6; /* Violet 500 */
+  --secondary: #ec4899; /* Pink 500 */
 }
 
 body {
-  background: linear-gradient(180deg, rgba(9,12,20,1) 0%, rgba(14,18,30,1) 100%);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Subtle background grid pattern */
+  background-image: 
+    linear-gradient(to right, #27272a 1px, transparent 1px),
+    linear-gradient(to bottom, #27272a 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  background-position: center top;
+  /* Fade out grid at bottom */
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  min-height: 100vh;
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-input, textarea, select {
-  background: transparent;
-  color: inherit;
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-button, a.button {
-  cursor: pointer;
+/* Custom Utilities */
+.glass-panel {
+  background: rgba(24, 24, 27, 0.4); /* Zinc 900 with opacity */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.backdrop-blur {
-  backdrop-filter: blur(6px);
+.glass-panel:hover {
+  background: rgba(39, 39, 42, 0.5);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Text Gradients */
+.text-gradient {
+  background: linear-gradient(to right, #c084fc, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
