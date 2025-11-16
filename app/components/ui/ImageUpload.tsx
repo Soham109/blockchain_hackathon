@@ -13,6 +13,7 @@ interface ImageUploadProps {
 
 export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Compress image using canvas
@@ -71,11 +72,16 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
     });
   }
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  async function processFiles(files: File[]) {
+    if (files.length === 0) {
+      return;
+    }
 
     const remainingSlots = maxImages - images.length;
+    if (remainingSlots <= 0) {
+      return;
+    }
+    
     const filesToUpload = files.slice(0, remainingSlots);
 
     setUploading(true);
@@ -132,6 +138,38 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
     }
   }
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    await processFiles(files);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (uploading) {
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files || []);
+    await processFiles(files);
+  }
+
   function removeImage(index: number) {
     onChange(images.filter((_, i) => i !== index));
   }
@@ -171,12 +209,35 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
       )}
 
       {images.length < maxImages && (
-        <Card className={cn("border-2 border-dashed hover:border-primary/50 transition-colors", images.length === 0 && "border-primary/30")}>
+        <Card 
+          className={cn(
+            "border-2 border-dashed transition-all",
+            isDragging 
+              ? "border-primary bg-primary/5 scale-[1.02]" 
+              : "hover:border-primary/50",
+            images.length === 0 && "border-primary/30"
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <CardContent className="p-6">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (fileInputRef.current && !uploading) {
+                  // Reset the input value to allow selecting the same file again
+                  fileInputRef.current.value = '';
+                  // Use setTimeout to ensure the click happens after any state updates
+                  setTimeout(() => {
+                    fileInputRef.current?.click();
+                  }, 0);
+                }
+              }}
               disabled={uploading}
-              className="w-full flex flex-col items-center justify-center gap-3 py-8 cursor-pointer"
+              className="w-full flex flex-col items-center justify-center gap-3 py-8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? (
                 <>
@@ -185,11 +246,19 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
                 </>
               ) : (
                 <>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <Upload className="h-6 w-6 text-muted-foreground" />
+                  <div className={cn(
+                    "h-12 w-12 rounded-full flex items-center justify-center transition-colors",
+                    isDragging ? "bg-primary/20" : "bg-muted"
+                  )}>
+                    <Upload className={cn(
+                      "h-6 w-6 transition-colors",
+                      isDragging ? "text-primary" : "text-muted-foreground"
+                    )} />
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-medium">Click to upload images</p>
+                    <p className="text-sm font-medium">
+                      {isDragging ? "Drop images here" : "Click to upload or drag and drop"}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {images.length > 0 
                         ? `Add ${maxImages - images.length} more image${maxImages - images.length > 1 ? 's' : ''}`
@@ -210,7 +279,8 @@ export default function ImageUpload({ images, onChange, maxImages = 5 }: ImageUp
         accept="image/*"
         multiple
         onChange={handleFileSelect}
-        className="hidden"
+        style={{ display: 'none' }}
+        aria-hidden="true"
       />
     </div>
   );

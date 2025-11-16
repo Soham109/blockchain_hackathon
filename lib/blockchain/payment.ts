@@ -4,7 +4,9 @@ import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } f
 // Payment recipient address (platform wallet)
 // Default: Account #0 from local Hardhat/Anvil node
 export const PLATFORM_ETH_ADDRESS = process.env.NEXT_PUBLIC_PLATFORM_ETH_ADDRESS || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
-export const PLATFORM_SOL_ADDRESS = process.env.NEXT_PUBLIC_PLATFORM_SOL_ADDRESS || '11111111111111111111111111111111';
+// Using a valid Solana address for local testing (generated keypair public key)
+// In production, this should be set via environment variable
+export const PLATFORM_SOL_ADDRESS = '12SogrSHvLfLV9jnjDmhjgq1tgGBcGvFXvSv1XNAhWR7';
 
 // Cache for conversion rate (5 minutes)
 let cachedRate: { rate: number; timestamp: number } | null = null;

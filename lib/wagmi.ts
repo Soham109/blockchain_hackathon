@@ -1,6 +1,6 @@
 import { createConfig, http } from 'wagmi';
 import { defineChain } from 'viem';
-import { injected, metaMask } from 'wagmi/connectors';
+import { injected } from 'wagmi/connectors';
 
 // Local Arbitrum-compatible chain (Chain ID: 31337)
 export const localArbitrum = defineChain({
@@ -24,14 +24,16 @@ export const localArbitrum = defineChain({
 export const config = createConfig({
   chains: [localArbitrum],
   connectors: [
-    metaMask(), // MetaMask connector (primary for testing)
+    // Use injected connector instead of metaMask() to avoid SDK initialization errors
+    // The injected connector automatically detects MetaMask, Gemini Wallet, and other injected wallets
+    // This prevents the "Cannot read properties of undefined (reading 'on')" error
     injected({
-      // This will detect any injected wallet including Gemini Wallet
-      // Gemini Wallet injects window.ethereum like MetaMask
-      // Note: Gemini doesn't support testnets, so this is for mainnet only
+      // This will detect any injected wallet including MetaMask and Gemini Wallet
+      // MetaMask injects window.ethereum, so it will be detected automatically
     }),
   ],
   transports: {
     [localArbitrum.id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'http://127.0.0.1:8545'),
   },
+  ssr: true,
 });

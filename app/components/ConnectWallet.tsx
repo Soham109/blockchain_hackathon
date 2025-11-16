@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,73 @@ export function ConnectWallet() {
   const { address, isConnected, connector } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
-  const { publicKey, connect: connectSolana, disconnect: disconnectSolana, connecting } = useWallet();
+  const { publicKey, disconnect: disconnectSolana, connecting, select, connect: connectSolana, wallets, wallet } = useWallet();
+  const publicKeyRef = useRef(publicKey);
+  
+  // Update ref when publicKey changes
+  useEffect(() => {
+    publicKeyRef.current = publicKey;
+  }, [publicKey]);
+  
+  const handleConnectSolana = async () => {
+    const wasConnected = !!publicKeyRef.current;
+    
+    try {
+      // Find Phantom wallet adapter
+      const phantomWallet = wallets.find(w => w.adapter.name === 'Phantom');
+      
+      if (!phantomWallet) {
+        alert('Phantom wallet not found. Please install the Phantom extension.');
+        return;
+      }
+
+      // If Phantom is already selected and connected, do nothing
+      if (wallet?.adapter.name === 'Phantom' && publicKey) {
+        return;
+      }
+
+      // Select Phantom wallet first - this is critical
+      if (wallet?.adapter.name !== 'Phantom') {
+        select('Phantom');
+        // Wait longer for selection to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Use the adapter's connect method directly to avoid hook issues
+      const adapter = phantomWallet.adapter;
+      
+      // Check if adapter is already connected
+      if (adapter.connected) {
+        return;
+      }
+
+      // Connect using the adapter directly
+      if (!adapter.connected) {
+        await adapter.connect();
+      }
+    } catch (error: any) {
+      // Wait a bit to see if connection actually succeeded despite the error
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // If user rejected, don't show error
+      if (error.message?.includes('User rejected') || error.message?.includes('rejected') || error.message?.includes('User cancelled')) {
+        return;
+      }
+      
+      // Check if we're actually connected now (connection might have succeeded despite error)
+      const isConnectedNow = !!publicKeyRef.current;
+      
+      // Only show error if we're definitely not connected AND we weren't connected before
+      if (!isConnectedNow && !wasConnected) {
+        // Real failure - show error
+        console.error('Phantom connection failed:', error);
+        // Don't show alert - just log it, the UI will show the connection state
+      } else {
+        // Connection succeeded despite the error - this is common with wallet adapters
+        // Silently succeed
+      }
+    }
+  };
 
   return (
     <Dialog>
@@ -124,7 +190,7 @@ export function ConnectWallet() {
                 <Button
                   variant="outline"
                   className="w-full justify-start cursor-pointer h-14 border-2 hover:bg-accent hover:border-primary/50 transition-all shadow-sm hover:shadow-md"
-                  onClick={() => connectSolana()}
+                  onClick={handleConnectSolana}
                   disabled={connecting}
                 >
                   <Wallet className="mr-3 h-5 w-5" />

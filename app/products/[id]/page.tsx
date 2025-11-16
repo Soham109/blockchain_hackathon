@@ -414,19 +414,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div className="pt-2">
           <ProductRecommendations currentProductId={id} />
         </div>
-      </div>
-
-      {product && (
-        <PaymentModal
-          open={paymentOpen}
-          onOpenChange={setPaymentOpen}
-          product={product}
-          type="purchase"
-        />
-      )}
               </div>
             );
           })()}
+          {product && (
+            <PaymentModal
+              open={paymentOpen}
+              onOpenChange={setPaymentOpen}
+              product={product}
+              type="purchase"
+            />
+          )}
         </main>
       )}
     </div>

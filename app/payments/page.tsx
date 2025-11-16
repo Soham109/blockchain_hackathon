@@ -94,7 +94,11 @@ export default function PaymentsPage() {
     );
   }
 
-  const totalSpent = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  // Calculate totals by payment method
+  const ethPayments = payments.filter(p => p.paymentMethod === 'eth');
+  const solPayments = payments.filter(p => p.paymentMethod === 'sol');
+  const totalETH = ethPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  const totalSOL = solPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
   return (
     <div className="min-h-screen pt-32 pb-12 px-4 bg-background">
@@ -105,7 +109,12 @@ export default function PaymentsPage() {
             <span>History</span>
           </h1>
           <p className="text-muted-foreground text-xl">
-            {payments.length} {payments.length === 1 ? 'payment' : 'payments'} • Total: ${totalSpent.toFixed(2)}
+            {payments.length} {payments.length === 1 ? 'payment' : 'payments'} • Total: {
+              [
+                totalETH > 0 && `${totalETH.toFixed(6)} ETH`,
+                totalSOL > 0 && `${totalSOL.toFixed(6)} SOL`
+              ].filter(Boolean).join(' • ')
+            }
           </p>
         </div>
 
@@ -134,7 +143,7 @@ export default function PaymentsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <CreditCard className="h-4 w-4" />
-                          ${(parseFloat(payment.amount) || 0).toFixed(2)} {payment.paymentMethod === 'eth' ? 'ETH' : 'SOL'}
+                          {parseFloat(payment.amount || '0').toFixed(6)} {payment.paymentMethod === 'eth' ? 'ETH' : 'SOL'}
                         </div>
                         {payment.verified && (
                           <Badge variant="default" className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30">

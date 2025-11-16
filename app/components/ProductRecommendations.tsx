@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUserLocation } from '../LocationContext';
+import { useUserLocation } from './LocationContext';
 
 interface ProductRecommendationsProps {
   currentProductId: string;

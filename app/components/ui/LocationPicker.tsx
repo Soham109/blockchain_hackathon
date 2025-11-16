@@ -10,20 +10,6 @@ import { useToast } from '@/components/ui/use-toast';
 // Dynamically import the entire map component to avoid SSR issues
 const MapComponent = dynamic(() => import('./MapComponent'), { ssr: false });
 
-// Load leaflet CSS only on client
-if (typeof window !== 'undefined') {
-  require('leaflet/dist/leaflet.css');
-  
-  // Fix for default marker icon in Next.js
-  const L = require('leaflet');
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  });
-}
-
 interface LocationPickerProps {
   latitude?: number;
   longitude?: number;
