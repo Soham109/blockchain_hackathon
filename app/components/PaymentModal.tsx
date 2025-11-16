@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -57,32 +57,60 @@ export function PaymentModal({
   const { toast } = useToast();
   const router = useRouter();
 
-  const amount = type === 'listing' 
-    ? listingFee || '0.001' // Default 0.001 ETH for listing
-    : type === 'boost'
-    ? boostFee || (boostKeywords.length * 0.0005).toFixed(4) // 0.0005 ETH per keyword
-    : (product.priceCents / 100).toString();
+  const amount = useMemo(() => {
+    return type === 'listing' 
+      ? listingFee || '0.001' // Default 0.001 ETH for listing
+      : type === 'boost'
+      ? boostFee || (boostKeywords.length * 0.0005).toFixed(4) // 0.0005 ETH per keyword
+      : (product.priceCents / 100).toString();
+  }, [type, listingFee, boostFee, boostKeywords.length, product.priceCents]);
 
-  // Generate unique payment ID
-  const paymentId = `${type}-${product._id}-${Date.now()}`;
+  // Generate unique payment ID only once when modal opens
+  const paymentIdRef = useRef<string>('');
+  useEffect(() => {
+    if (open && !paymentIdRef.current) {
+      paymentIdRef.current = `${type}-${product._id}-${Date.now()}`;
+    } else if (!open) {
+      // Reset when modal closes
+      paymentIdRef.current = '';
+      setStep('select');
+      setLoading(false);
+      setTxHash('');
+    }
+  }, [open, type, product._id]);
+
+  const paymentId = paymentIdRef.current;
 
   // Fetch SOL amount when component mounts or amount changes
   useEffect(() => {
+    let cancelled = false;
     async function fetchSolAmount() {
       try {
         const sol = await convertEthToSol(amount);
-        setSolAmount(sol);
+        if (!cancelled) {
+          setSolAmount(sol);
+        }
       } catch (error) {
         console.error('Failed to convert ETH to SOL:', error);
-        setSolAmount('Error');
+        if (!cancelled) {
+          setSolAmount('Error');
+        }
       }
     }
     if (open) {
       fetchSolAmount();
     }
+    return () => {
+      cancelled = true;
+    };
   }, [amount, open]);
 
-  async function handlePayment() {
+  const handlePayment = async () => {
+    // Prevent multiple clicks
+    if (loading) {
+      return;
+    }
+    
     setLoading(true);
     setStep('processing');
 

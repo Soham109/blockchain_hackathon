@@ -7,17 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Heart, MessageCircle, MapPin, Calendar, Package, CreditCard, ArrowRight, Star, Shield, TrendingUp, Tag } from 'lucide-react';
+import { Heart, MessageCircle, MapPin, Calendar, Package, CreditCard, ArrowRight, Star, Shield, TrendingUp, Tag, Clock } from 'lucide-react';
 import ReviewSection from '../../components/ReviewSection';
 import ImageGallery from '../../components/ui/ImageGallery';
+import { ProductMap } from '../../components/ui/ProductMap';
 import { useToast } from '@/components/ui/use-toast';
 import { PaymentModal } from '../../components/PaymentModal';
 import { ProductRecommendations } from '../../components/ProductRecommendations';
 import { ProductBoost } from '../../components/ProductBoost';
+import { useUserLocation } from '../../components/LocationContext';
+import { calculateDistance, formatDistance, estimateTravelTime, formatTravelTime } from '@/lib/location';
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: session, status } = useSession();
+  const { userLocation } = useUserLocation();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -341,10 +345,58 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     {product.sellerEmail?.split('@')[0] || 'student'}
                   </Link>
                 </div>
+                {product.location && (
+                  <div className="pt-2 border-t mt-2 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span className="truncate">{product.location}</span>
+                    </div>
+                    {userLocation && product.latitude && product.longitude && (() => {
+                      const distanceKm = calculateDistance(
+                        userLocation.lat,
+                        userLocation.lng,
+                        product.latitude,
+                        product.longitude
+                      );
+                      const distance = formatDistance(distanceKm);
+                      const timeMinutes = estimateTravelTime(distanceKm, 'walking');
+                      const travelTime = formatTravelTime(timeMinutes);
+                      return (
+                        <div className="flex items-center gap-2 text-xs text-primary font-medium">
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span>{distance} away</span>
+                          <span>•</span>
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{travelTime}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Location Map */}
+        {product.latitude && product.longitude && (
+          <div className="pt-2">
+            <Card className="border">
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Product Location
+                </h3>
+                <ProductMap
+                  latitude={product.latitude}
+                  longitude={product.longitude}
+                  address={product.location}
+                  userLocation={userLocation}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Product Boost Section */}
         {session?.user && session.user.email === product.sellerEmail && (

@@ -102,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const now = new Date();
-    const doc = { 
+    const doc: any = { 
       title, 
       description: description || '', 
       priceCents: Number(priceCents), 
@@ -117,6 +117,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: 'active',
       createdAt: now 
     };
+
+    // Add latitude and longitude if provided
+    if (req.body.latitude !== undefined && req.body.longitude !== undefined) {
+      doc.latitude = Number(req.body.latitude);
+      doc.longitude = Number(req.body.longitude);
+      
+      // Try to determine region from coordinates (async, but we'll do it synchronously via API call)
+      // For now, we'll store region if provided, otherwise it can be calculated later
+      if (req.body.region) {
+        doc.region = req.body.region;
+        doc.regionKey = req.body.regionKey;
+      }
+    }
     
     try {
       const result = await db.collection('products').insertOne(doc);

@@ -3,8 +3,9 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MapPin, Package, TrendingUp } from 'lucide-react';
+import { Heart, MapPin, Package, TrendingUp, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { calculateDistance, formatDistance, estimateTravelTime, formatTravelTime } from '@/lib/location';
 
 interface ProductCardProps {
   product: any;
@@ -12,6 +13,7 @@ interface ProductCardProps {
   onWishlistToggle?: (productId: string) => void;
   isWishlisted?: boolean;
   showActions?: boolean;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 export function ProductCard({
@@ -20,9 +22,25 @@ export function ProductCard({
   onWishlistToggle,
   isWishlisted = false,
   showActions = true,
+  userLocation,
 }: ProductCardProps) {
   const price = product.price || (product.priceCents / 100).toFixed(2);
   const isBoosted = product.boosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date();
+  
+  // Calculate distance if both locations are available
+  let distance: string | null = null;
+  let travelTime: string | null = null;
+  if (userLocation && product.latitude && product.longitude) {
+    const distanceKm = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      product.latitude,
+      product.longitude
+    );
+    distance = formatDistance(distanceKm);
+    const timeMinutes = estimateTravelTime(distanceKm, 'walking');
+    travelTime = formatTravelTime(timeMinutes);
+  }
 
   return (
     <Link href={`/products/${product._id}`} className="block h-full">
@@ -86,12 +104,27 @@ export function ProductCard({
                 ${price}
               </span>
             </div>
-            {product.location && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {product.location}
-              </div>
-            )}
+            <div className="space-y-1">
+              {product.location && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  <span className="truncate">{product.location}</span>
+                </div>
+              )}
+              {distance && (
+                <div className="flex items-center gap-2 text-xs text-primary font-medium">
+                  <MapPin className="h-3 w-3" />
+                  <span>{distance} away</span>
+                  {travelTime && (
+                    <>
+                      <span>•</span>
+                      <Clock className="h-3 w-3" />
+                      <span>{travelTime}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
               <span>
                 by {product.sellerEmail?.split('@')[0] || 'student'}

@@ -2,9 +2,9 @@ import { createConfig, http } from 'wagmi';
 import { defineChain } from 'viem';
 import { injected, metaMask } from 'wagmi/connectors';
 
-// Local Arbitrum-compatible chain
+// Local Arbitrum-compatible chain (Chain ID: 31337)
 export const localArbitrum = defineChain({
-  id: 31337,
+  id: 1337,
   name: 'Local Arbitrum',
   nativeCurrency: {
     decimals: 18,
@@ -17,7 +17,7 @@ export const localArbitrum = defineChain({
     },
   },
   blockExplorers: {
-    default: { name: 'Local', url: 'http://localhost:8545' },
+    default: { name: 'Local Arbitrum', url: 'http://localhost:8545' },
   },
 });
 

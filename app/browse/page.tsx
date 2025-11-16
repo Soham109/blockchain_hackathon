@@ -15,13 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, MapPin, Package, BookOpen, Laptop, Sofa, Wrench, Shirt, Sparkles } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, Package, BookOpen, Laptop, Sofa, Wrench, Shirt, Sparkles, Navigation } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { useUserLocation } from '../components/LocationContext';
+import { calculateDistance } from '@/lib/location';
 
 function BrowseContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { userLocation, userRegion, isLoading: locationLoading, requestLocation } = useUserLocation();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -29,6 +32,7 @@ function BrowseContent() {
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showFilters, setShowFilters] = useState(false);
+  const [regionFilter, setRegionFilter] = useState<'local' | 'all'>('local'); // Default to local
 
   // Check verification status
   useEffect(() => {
@@ -62,6 +66,20 @@ function BrowseContent() {
       .then((data) => {
         let items = data.products || data.items || [];
         
+        // Apply region filter - show local items by default if user region is available
+        if (regionFilter === 'local' && userRegion?.regionKey) {
+          items = items.filter((p: any) => {
+            // Match if product region key matches user region key
+            // Also match if product is in same country (fallback)
+            if (p.regionKey) {
+              return p.regionKey === userRegion.regionKey || 
+                     (userRegion.country && p.regionKey.includes(userRegion.country));
+            }
+            // If product doesn't have region, include it (backward compatibility)
+            return true;
+          });
+        }
+        
         // Apply price filter
         if (priceRange.min || priceRange.max) {
           items = items.filter((p: any) => {
@@ -73,20 +91,32 @@ function BrowseContent() {
         }
         
         // Apply sorting
-        items.sort((a: any, b: any) => {
-          switch (sortBy) {
-            case 'price-low':
-              return (a.price || a.priceCents / 100) - (b.price || b.priceCents / 100);
-            case 'price-high':
-              return (b.price || b.priceCents / 100) - (a.price || a.priceCents / 100);
-            case 'newest':
-              return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-            case 'oldest':
-              return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-            default:
-              return 0;
-          }
-        });
+        if (sortBy === 'distance' && userLocation) {
+          // Sort by distance if user location is available
+          items = items
+            .map((p: any) => ({
+              ...p,
+              _distance: p.latitude && p.longitude
+                ? calculateDistance(userLocation.lat, userLocation.lng, p.latitude, p.longitude)
+                : Infinity,
+            }))
+            .sort((a: any, b: any) => a._distance - b._distance);
+        } else {
+          items.sort((a: any, b: any) => {
+            switch (sortBy) {
+              case 'price-low':
+                return (a.price || a.priceCents / 100) - (b.price || b.priceCents / 100);
+              case 'price-high':
+                return (b.price || b.priceCents / 100) - (a.price || a.priceCents / 100);
+              case 'newest':
+                return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+              case 'oldest':
+                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+              default:
+                return 0;
+            }
+          });
+        }
         
         setProducts(items);
         setLoading(false);
@@ -95,7 +125,7 @@ function BrowseContent() {
         console.error('Failed to fetch products:', e);
         setLoading(false);
       });
-  }, [searchQuery, filter, sortBy, priceRange, session, status]);
+  }, [searchQuery, filter, sortBy, priceRange, session, status, userLocation, userRegion, regionFilter]);
 
   // Always render same structure to avoid hook violations
   const user = session?.user as any;
@@ -134,13 +164,43 @@ function BrowseContent() {
         <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 pt-4">
-          <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">
-            <span className="text-blue-500 dark:text-cyan-400">Browse</span>{' '}
-            <span>Marketplace</span>
-          </h1>
-          <p className="text-muted-foreground mb-6">
-            {products.length} items available
-          </p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-5xl md:text-6xl font-bold mb-3 tracking-tight text-center md:text-left">
+                <span className="text-blue-500 dark:text-cyan-400">Browse</span>{' '}
+                <span>Marketplace</span>
+              </h1>
+              <p className="text-muted-foreground">
+                {products.length} items available
+                {userRegion && regionFilter === 'local' && (
+                  <span className="ml-2 text-xs">
+                    in {userRegion.city || userRegion.state || userRegion.country}
+                  </span>
+                )}
+              </p>
+            </div>
+            {userRegion && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={regionFilter === 'local' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRegionFilter('local')}
+                  className="text-xs"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Local
+                </Button>
+                <Button
+                  variant={regionFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRegionFilter('all')}
+                  className="text-xs"
+                >
+                  All Regions
+                </Button>
+              </div>
+            )}
+          </div>
           
           {/* Search and Filter Bar */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -155,6 +215,18 @@ function BrowseContent() {
               />
             </div>
             <div className="flex gap-2">
+              {!userLocation && (
+                <Button
+                  variant="outline"
+                  onClick={requestLocation}
+                  disabled={locationLoading}
+                  className="cursor-pointer border shadow-sm hover:shadow-md transition-shadow"
+                  title="Enable location to see distances"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  {locationLoading ? 'Locating...' : 'Get Location'}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
@@ -172,6 +244,7 @@ function BrowseContent() {
                   <SelectItem value="oldest">Oldest First</SelectItem>
                   <SelectItem value="price-low">Price: Low to High</SelectItem>
                   <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  {userLocation && <SelectItem value="distance">Distance: Nearest</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -264,7 +337,7 @@ function BrowseContent() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductCard key={product._id} product={product} />
+              <ProductCard key={product._id} product={product} userLocation={userLocation} />
             ))}
           </div>
         )}

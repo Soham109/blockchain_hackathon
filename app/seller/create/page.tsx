@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ImageUpload from '../../components/ui/ImageUpload';
+import { LocationPicker } from '../../components/ui/LocationPicker';
 import { useToast } from '@/components/ui/use-toast';
 import { PaymentModal } from '../../components/PaymentModal';
 import { AlertCircle, Plus } from 'lucide-react';
@@ -30,6 +31,10 @@ export default function CreateListing() {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('textbooks');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | undefined>();
+  const [longitude, setLongitude] = useState<number | undefined>();
+  const [region, setRegion] = useState<string>('');
+  const [regionKey, setRegionKey] = useState<string>('');
   const [condition, setCondition] = useState('excellent');
   const [brand, setBrand] = useState('');
   const [year, setYear] = useState('');
@@ -90,6 +95,10 @@ export default function CreateListing() {
       images: images.filter(img => img && img.length > 0), // Filter out empty images
       category,
       location,
+      latitude,
+      longitude,
+      region: region || undefined,
+      regionKey: regionKey || undefined,
       condition,
       brand: brand.trim() || undefined,
       year: year.trim() || undefined,
@@ -97,6 +106,48 @@ export default function CreateListing() {
     };
     setProductData(data);
     setPaymentOpen(true);
+  }
+
+  const handleLocationChange = async (locationData: { lat: number; lng: number; address: string }) => {
+    setLatitude(locationData.lat);
+    setLongitude(locationData.lng);
+    setLocation(locationData.address);
+    
+    // Fetch region information from coordinates
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationData.lat}&lon=${locationData.lng}&zoom=10&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.address) {
+        const addr = data.address;
+        const city = addr.city || addr.town || addr.village || addr.municipality;
+        const state = addr.state || addr.region;
+        const country = addr.country;
+        
+        // Create region key and display string
+        let key = '';
+        let display = '';
+        if (city && state && country) {
+          key = `${city},${state},${country}`;
+          display = `${city}, ${state}, ${country}`;
+        } else if (state && country) {
+          key = `${state},${country}`;
+          display = `${state}, ${country}`;
+        } else if (country) {
+          key = country;
+          display = country;
+        }
+        
+        if (key) {
+          setRegionKey(key);
+          setRegion(display);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch region:', error);
+    }
   }
 
   async function createProductAfterPayment() {
@@ -250,16 +301,6 @@ export default function CreateListing() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-2 duration-300 delay-200">
                 <div>
-                  <Label htmlFor="location" className="text-base font-semibold">Location</Label>
-                  <Input
-                    id="location"
-                    value={location}
-                    onChange={e => setLocation(e.target.value)}
-                    placeholder="e.g., Main Campus, Dorm Building A"
-                    className="border-2 mt-2 transition-all duration-200 focus:scale-[1.01]"
-                  />
-                </div>
-                <div>
                   <Label htmlFor="condition" className="text-base font-semibold">Condition *</Label>
                   <Select value={condition} onValueChange={setCondition}>
                     <SelectTrigger id="condition" className="border-2 mt-2">
@@ -274,6 +315,15 @@ export default function CreateListing() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-225">
+                <LocationPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  address={location}
+                  onLocationChange={handleLocationChange}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-2 duration-300 delay-250">

@@ -4,6 +4,7 @@ import { SessionProvider } from 'next-auth/react';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from './components/ThemeProvider';
 import { WalletProvider } from './components/WalletProvider';
+import { LocationProvider } from './components/LocationContext';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -13,8 +14,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     >
       <ThemeProvider>
         <WalletProvider>
-          {children}
-          <Toaster />
+          <LocationProvider>
+            {children}
+            <Toaster />
+          </LocationProvider>
         </WalletProvider>
       </ThemeProvider>
     </SessionProvider>

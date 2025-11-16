@@ -1,0 +1,19 @@
+[2025-11-16T11:29:03.434716000Z INFO  solana_test_validator] solana-validator 1.18.20 (src:00000000; feat:4215500110, client:SolanaLabs)
+[2025-11-16T11:29:03.434814000Z INFO  solana_test_validator] Starting validator with: ArgsOs {
+        inner: [
+            "solana-test-validator",
+            "--reset",
+        ],
+    }
+[2025-11-16T11:29:03.435412000Z WARN  solana_perf] CUDA is disabled
+[2025-11-16T11:29:03.441989000Z INFO  solana_faucet::faucet] Faucet started. Listening on: 0.0.0.0:9900
+[2025-11-16T11:29:03.441998000Z INFO  solana_faucet::faucet] Faucet account address: CxE4z9kx5XaoN7oZW7yzUBgR8cQNNoYRGYv47VNFMeM3
+[2025-11-16T11:29:03.444625000Z INFO  solana_validator::admin_rpc_service] started admin rpc service!
+[2025-11-16T11:29:03.449839000Z INFO  solana_test_validator] Feature for 41tVp5qR1XwWRt5WifvtSQyuxtqQWJgEK8w91AtBqSwP deactivated
+[2025-11-16T11:29:03.453591000Z INFO  solana_ledger::blockstore] Maximum open file descriptors: 1048575
+[2025-11-16T11:29:03.453826000Z INFO  solana_ledger::blockstore] Opening blockstore at "test-ledger/rocksdb"
+[2025-11-16T11:29:03.454903000Z WARN  solana_ledger::blockstore_db] Unable to detect Rocks columns: Error { message: "IO error: No such file or directory: While opening a file for sequentially reading: test-ledger/rocksdb/CURRENT: No such file or directory" }
+[2025-11-16T11:29:03.523715000Z INFO  solana_ledger::blockstore] Opening blockstore done; blockstore open took 69ms
+[2025-11-16T11:29:03.532385000Z INFO  solana_metrics::metrics] metrics disabled: environment variable not found
+[2025-11-16T11:29:03.532445000Z INFO  solana_metrics::metrics] datapoint: shred_insert_is_full total_time_ms=0i slot=0i last_index=31i num_repaired=0i num_recovered=0i
+[2025-11-16T11:29:03.594861000Z INFO  solana_accounts_db::hardened_unpack] Extracting "test-ledger/genesis.tar.bz2"...

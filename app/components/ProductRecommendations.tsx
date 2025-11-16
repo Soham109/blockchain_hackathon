@@ -5,12 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUserLocation } from '../LocationContext';
 
 interface ProductRecommendationsProps {
   currentProductId: string;
 }
 
 export function ProductRecommendations({ currentProductId }: ProductRecommendationsProps) {
+  const { userRegion } = useUserLocation();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,13 +20,33 @@ export function ProductRecommendations({ currentProductId }: ProductRecommendati
     async function loadRecommendations() {
       try {
         const params = new URLSearchParams();
-        params.set('limit', '4');
+        params.set('limit', '20'); // Get more to filter by region
         params.set('exclude', currentProductId);
 
         const res = await fetch(`/api/products?${params.toString()}`);
         const data = await res.json();
         if (res.ok) {
-          setProducts((data.products || data.items || []).slice(0, 4));
+          let items = data.products || data.items || [];
+          
+          // Prioritize local items if user region is available
+          if (userRegion?.regionKey) {
+            const localItems = items.filter((p: any) => 
+              p.regionKey && (
+                p.regionKey === userRegion.regionKey || 
+                (userRegion.country && p.regionKey.includes(userRegion.country))
+              )
+            );
+            const otherItems = items.filter((p: any) => 
+              !p.regionKey || (
+                p.regionKey !== userRegion.regionKey && 
+                (!userRegion.country || !p.regionKey.includes(userRegion.country))
+              )
+            );
+            // Show local items first, then others
+            items = [...localItems, ...otherItems];
+          }
+          
+          setProducts(items.slice(0, 4));
         }
       } catch (err) {
         console.error('Failed to load recommendations', err);
@@ -33,7 +55,7 @@ export function ProductRecommendations({ currentProductId }: ProductRecommendati
       }
     }
     loadRecommendations();
-  }, [currentProductId]);
+  }, [currentProductId, userRegion]);
 
   if (loading) {
     return (
