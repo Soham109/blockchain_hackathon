@@ -4,10 +4,17 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendVerificationEmail } from '../../../lib/email';
 
+const EDU_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu$/i;
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();
   const { email, password, role } = req.body as { email?: string; password?: string; role?: string };
   if (!email || !password || !role) return res.status(400).json({ error: 'email, password and role are required' });
+
+  // Validate .edu email
+  if (!EDU_EMAIL_REGEX.test(email)) {
+    return res.status(400).json({ error: 'Only .edu email addresses are allowed' });
+  }
 
   const db = await getDb();
   const existing = await db.collection('users').findOne({ email });
@@ -15,7 +22,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const hash = await bcrypt.hash(password, 10);
   const now = new Date();
-  const insert = { email, passwordHash: hash, role, emailVerified: false, createdAt: now };
+  // Generate default avatar with user's initial
+  const initial = email[0]?.toUpperCase() || 'U';
+  // Create a simple SVG avatar as data URL
+  const defaultAvatar = `data:image/svg+xml;base64,${Buffer.from(
+    `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="200" fill="%233b82f6"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${initial}</text>
+    </svg>`
+  ).toString('base64')}`;
+  
+  const insert = { 
+    email, 
+    passwordHash: hash, 
+    role, 
+    emailVerified: false, 
+    avatar: defaultAvatar,
+    createdAt: now 
+  };
   const r = await db.collection('users').insertOne(insert);
 
   // create verification token

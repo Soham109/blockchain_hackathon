@@ -1,0 +1,139 @@
+"use client";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Eye, Heart, MessageCircle, Users, Package, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+interface StatItem {
+  label: string;
+  value: string | number;
+  change?: number;
+  icon: React.ElementType;
+  trend?: 'up' | 'down';
+  progress?: number;
+  description?: string;
+}
+
+interface StatsOverviewProps {
+  stats: StatItem[];
+  className?: string;
+}
+
+export function StatsOverview({ stats, className }: StatsOverviewProps) {
+  return (
+    <TooltipProvider>
+      <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4", className)}>
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          const isPositive = stat.change !== undefined && stat.change > 0;
+          
+          return (
+            <Tooltip key={index}>
+              <TooltipTrigger asChild>
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      {stat.label}
+                    </CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    {stat.change !== undefined && (
+                      <div className="flex items-center gap-1 text-xs mt-1">
+                        {isPositive ? (
+                          <>
+                            <ArrowUpRight className="h-3 w-3 text-green-500" />
+                            <span className="text-green-500">+{stat.change}%</span>
+                          </>
+                        ) : (
+                          <>
+                            <ArrowDownRight className="h-3 w-3 text-red-500" />
+                            <span className="text-red-500">{stat.change}%</span>
+                          </>
+                        )}
+                        <span className="text-muted-foreground ml-1">from last month</span>
+                      </div>
+                    )}
+                    {stat.progress !== undefined && (
+                      <div className="mt-3">
+                        <Progress value={stat.progress} className="h-2" />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              {stat.description && (
+                <TooltipContent>
+                  <p>{stat.description}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+export function SellerStatsOverview({ userId }: { userId: string }) {
+  const [stats, setStats] = React.useState<StatItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(`/api/users/stats`)
+      .then(r => r.json())
+      .then(data => {
+        setStats([
+          {
+            label: 'Total Listings',
+            value: data.totalListings || 0,
+            change: 12,
+            icon: Package,
+            description: 'Total products you have listed',
+          },
+          {
+            label: 'Total Views',
+            value: data.totalViews || 0,
+            change: 8,
+            icon: Eye,
+            description: 'Total views across all your listings',
+          },
+          {
+            label: 'Wishlist Saves',
+            value: data.totalWishlists || 0,
+            change: 15,
+            icon: Heart,
+            description: 'Times your products were saved to wishlists',
+          },
+          {
+            label: 'Messages',
+            value: data.totalMessages || 0,
+            change: 5,
+            icon: MessageCircle,
+            description: 'Total messages received',
+          },
+        ]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [userId]);
+
+  if (loading) {
+    return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-6">
+            <div className="h-20 animate-pulse bg-muted rounded" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>;
+  }
+
+  return <StatsOverview stats={stats} />;
+}
+
+

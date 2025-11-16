@@ -1,0 +1,191 @@
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Search, TrendingUp, Clock, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+interface SearchSuggestion {
+  id: string;
+  text: string;
+  type: 'recent' | 'trending' | 'suggestion';
+  count?: number;
+}
+
+interface SearchSuggestionsProps {
+  onSearch: (query: string) => void;
+  className?: string;
+}
+
+export function SearchSuggestions({ onSearch, className }: SearchSuggestionsProps) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const stored = localStorage.getItem('recentSearches');
+    if (stored) {
+      setRecentSearches(JSON.parse(stored));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (query.length > 0) {
+      // Simulate API call for suggestions
+      const mockSuggestions: SearchSuggestion[] = [
+        { id: '1', text: `${query} textbook`, type: 'suggestion' },
+        { id: '2', text: `${query} calculator`, type: 'suggestion' },
+        { id: '3', text: `${query} laptop`, type: 'suggestion' },
+      ];
+      setSuggestions(mockSuggestions);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [query]);
+
+  const handleSearch = (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    
+    // Save to recent searches
+    const updated = [searchQuery, ...recentSearches.filter(s => s !== searchQuery)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+    
+    onSearch(searchQuery);
+    setShowSuggestions(false);
+    router.push(`/browse?q=${encodeURIComponent(searchQuery)}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch(query);
+    }
+  };
+
+  const clearRecent = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
+  };
+
+  const trendingSearches: SearchSuggestion[] = [
+    { id: 't1', text: 'Calculus textbook', type: 'trending', count: 234 },
+    { id: 't2', text: 'MacBook Pro', type: 'trending', count: 189 },
+    { id: 't3', text: 'Dorm furniture', type: 'trending', count: 156 },
+    { id: 't4', text: 'Graphing calculator', type: 'trending', count: 142 },
+  ];
+
+  return (
+    <div className={cn("relative w-full", className)}>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          ref={inputRef}
+          type="text"
+          placeholder="Search products, categories, keywords..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onKeyDown={handleKeyDown}
+          className="pl-10 pr-10 cursor-text"
+        />
+        {query && (
+          <button
+            onClick={() => {
+              setQuery('');
+              setShowSuggestions(false);
+            }}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+
+      {showSuggestions && (
+        <Card className="absolute top-full left-0 right-0 mt-2 z-50 shadow-lg">
+          <CardContent className="p-0">
+            <ScrollArea className="max-h-96">
+              <div className="p-2">
+                {query.length > 0 && suggestions.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Suggestions</p>
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        onClick={() => handleSearch(suggestion.text)}
+                        className="w-full text-left px-3 py-2 rounded-md hover:bg-accent transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <span>{suggestion.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {recentSearches.length > 0 && query.length === 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2 px-2">
+                      <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Recent Searches
+                      </p>
+                      <button
+                        onClick={clearRecent}
+                        className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    {recentSearches.map((search, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSearch(search)}
+                        className="w-full text-left px-3 py-2 rounded-md hover:bg-accent transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{search}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {query.length === 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 px-2 flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      Trending Searches
+                    </p>
+                    {trendingSearches.map((trend) => (
+                      <button
+                        key={trend.id}
+                        onClick={() => handleSearch(trend.text)}
+                        className="w-full text-left px-3 py-2 rounded-md hover:bg-accent transition-colors cursor-pointer flex items-center justify-between"
+                      >
+                        <span>{trend.text}</span>
+                        {trend.count && (
+                          <Badge variant="secondary" className="text-xs">
+                            {trend.count}
+                          </Badge>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+

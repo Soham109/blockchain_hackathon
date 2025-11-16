@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
-import Loading from '../components/ui/Loading';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OnboardingPage() {
   const { data: session, status } = useSession();
@@ -26,7 +26,11 @@ export default function OnboardingPage() {
   }
 
   if (status === 'loading') {
-    return <Loading fullscreen />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Skeleton className="h-12 w-64" />
+      </div>
+    );
   }
 
   const user = session?.user as any;
@@ -67,12 +71,12 @@ export default function OnboardingPage() {
         } else if (data?.status) {
           setLatestVerification({ parsed: data.parsed, status: data.status, id: data.idVerificationId });
         }
-        // If backend marked the document as verified, redirect to dashboard and reload so session reflects change
+        // If backend marked the document as verified, redirect to dashboard immediately
         if (data?.status === 'verified') {
+          // Update session first, then redirect
           setTimeout(() => {
-            // full navigation + reload to ensure NextAuth session refresh
             window.location.href = '/dashboard';
-          }, 900);
+          }, 1500);
         }
       } else {
         setUploadStatus('error');
@@ -98,9 +102,26 @@ export default function OnboardingPage() {
   }
 
   useEffect(() => {
-    if (user?.id) fetchLatest();
+    if (user?.id && !isStudentVerified) {
+      fetchLatest();
+      // Poll for verification status
+      const interval = setInterval(async () => {
+        try {
+          const resp = await fetch('/api/id/latest', { headers: { 'x-user-id': user.id } });
+          const data = await resp.json();
+          if (resp.ok && data.verification?.status === 'verified') {
+            clearInterval(interval);
+            // Redirect to dashboard when verified
+            window.location.href = '/dashboard';
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      }, 5000); // Check every 5 seconds
+      return () => clearInterval(interval);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, isStudentVerified]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
@@ -141,28 +162,34 @@ export default function OnboardingPage() {
         {/* Already Verified */}
         {isStudentVerified && (
           <Card className="border-emerald-500/30 bg-emerald-500/10 mb-8">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">✓</span>
-              <div>
-                <h3 className="font-bold text-emerald-200">You're Verified!</h3>
-                <p className="text-sm text-emerald-100 mt-1">
-                  Your student ID has been verified. You can now buy and sell on the marketplace.
-                </p>
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="text-sm text-emerald-300 hover:text-emerald-200 underline mt-2"
-                >
-                  Go to Dashboard →
-                </button>
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">✓</span>
+                <div>
+                  <h3 className="font-bold text-emerald-200">You're Verified!</h3>
+                  <p className="text-sm text-emerald-100 mt-1">
+                    Your student ID has been verified. You can now buy and sell on the marketplace.
+                  </p>
+                  <Button
+                    onClick={() => router.push('/dashboard')}
+                    variant="outline"
+                    className="mt-2 cursor-pointer"
+                  >
+                    Go to Dashboard →
+                  </Button>
+                </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Upload Form */}
         {!isStudentVerified && (
           <Card className="mb-8">
-            <h2 className="text-2xl font-bold mb-6">Upload Student ID Photo</h2>
+            <CardHeader>
+              <CardTitle className="text-2xl">Upload Student ID Photo</CardTitle>
+            </CardHeader>
+            <CardContent>
 
             <form onSubmit={handleUpload} className="space-y-6">
               {/* File Input */}
@@ -222,40 +249,42 @@ export default function OnboardingPage() {
                 )}
               </Button>
               </form>
+            </CardContent>
           </Card>
         )}
 
-        {/* Verification Result */}
-        {latestVerification && (
+        {/* Verification Result - Only show if pending/rejected, auto-redirect if verified */}
+        {latestVerification && latestVerification.status !== 'verified' && (
           <Card className="mb-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-bold">Verification Result</h3>
-                <p className="text-sm text-slate-300">Status: <strong className="ml-2">{latestVerification.status}</strong></p>
-                {parsedResult ? (
-                  <div className="mt-3 bg-slate-800/30 p-3 rounded">
-                    <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsedResult, null, 2)}</pre>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-400 mt-2">No parsed data available yet.</p>
-                )}
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold">Verification Status</h3>
+                  <p className="text-sm text-slate-300 mt-2">
+                    Status: <strong className="ml-2 capitalize">{latestVerification.status}</strong>
+                  </p>
+                  {latestVerification.status === 'pending' && (
+                    <p className="text-sm text-slate-400 mt-2">
+                      Your ID is being reviewed. This usually takes a few minutes.
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Button onClick={() => fetchLatest()} variant="outline" size="sm" className="cursor-pointer">Refresh Status</Button>
+                </div>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <Button onClick={() => fetchLatest()} className="px-3 py-1">Refresh</Button>
-                {latestVerification.status === 'verified' ? (
-                  <Button onClick={() => router.push('/dashboard')} className="px-3 py-1 bg-emerald-600">Go to Dashboard</Button>
-                ) : null}
-              </div>
-            </div>
+            </CardContent>
           </Card>
         )}
 
         {/* Info Box */}
         <Card>
-          <h3 className="font-bold mb-2">🔒 Your Data is Private</h3>
-          <p className="text-sm text-slate-300">
-            We use AI to extract and verify your student ID information. Your photo is never stored — only the verification result is saved to our secure database.
-          </p>
+          <CardContent className="p-6">
+            <h3 className="font-bold mb-2">🔒 Your Data is Private</h3>
+            <p className="text-sm text-slate-300">
+              We use AI to extract and verify your student ID information. Your photo is never stored — only the verification result is saved to our secure database.
+            </p>
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -7,7 +7,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!id) return res.status(400).json({ error: 'id required' });
   const db = await getDb();
 
+  try {
   const oid = new ObjectId(id);
+    
   if (req.method === 'GET') {
     const product = await db.collection('products').findOne({ _id: oid });
     if (!product) return res.status(404).json({ error: 'not found' });
@@ -28,4 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   res.setHeader('Allow', 'GET,PUT,DELETE');
   res.status(405).end();
+  } catch (err: any) {
+    console.error('Product API error:', err);
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
 }

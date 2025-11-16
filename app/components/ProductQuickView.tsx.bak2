@@ -1,0 +1,154 @@
+"use client";
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Heart, MapPin, Calendar, Package, TrendingUp, Eye } from 'lucide-react';
+import Link from 'next/link';
+import ImageGallery from './ui/ImageGallery';
+
+interface ProductQuickViewProps {
+  product: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onWishlistToggle?: (productId: string) => void;
+  isWishlisted?: boolean;
+}
+
+export function ProductQuickView({
+  product,
+  open,
+  onOpenChange,
+  onWishlistToggle,
+  isWishlisted = false,
+}: ProductQuickViewProps) {
+  if (!product) return null;
+
+  const price = product.price || (product.priceCents / 100).toFixed(2);
+  const isBoosted = product.boosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <DialogTitle className="text-2xl mb-2">{product.title}</DialogTitle>
+              <DialogDescription className="text-base">
+                {product.category && (
+                  <Badge variant="secondary" className="mr-2">
+                    {product.category}
+                  </Badge>
+                )}
+                {isBoosted && (
+                  <Badge variant="default" className="mr-2">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Boosted
+                  </Badge>
+                )}
+                {product.status === 'sold' && (
+                  <Badge variant="destructive">SOLD</Badge>
+                )}
+              </DialogDescription>
+            </div>
+            {onWishlistToggle && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onWishlistToggle(product._id)}
+                className="cursor-pointer"
+              >
+                <Heart className={isWishlisted ? "h-5 w-5 fill-red-500 text-red-500" : "h-5 w-5"} />
+              </Button>
+            )}
+          </div>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="space-y-6">
+            {product.images && product.images.length > 0 && (
+              <div className="w-full">
+                <ImageGallery images={product.images} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Price</h3>
+                  <p className="text-3xl font-bold">${price}</p>
+                </div>
+
+                {product.description && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Description</h3>
+                    <p className="text-muted-foreground whitespace-pre-wrap">
+                      {product.description}
+                    </p>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-2">
+                  {product.location && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span>{product.location}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>Listed {new Date(product.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span>Category: {product.category || 'General'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Seller</h3>
+                  <div className="flex items-center gap-3 p-3 border rounded-lg">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      {product.sellerEmail?.[0]?.toUpperCase() || 'S'}
+                    </div>
+                    <div>
+                      <p className="font-medium">{product.sellerEmail?.split('@')[0] || 'Student'}</p>
+                      <p className="text-sm text-muted-foreground">{product.sellerEmail}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {product.status !== 'sold' && (
+                  <div className="space-y-2">
+                    <Link href={`/products/${product._id}`} className="w-full">
+                      <Button className="w-full cursor-pointer">
+                        View Full Details
+                      </Button>
+                    </Link>
+                    <Button variant="outline" className="w-full cursor-pointer">
+                      Contact Seller
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+

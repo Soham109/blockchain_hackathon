@@ -1,0 +1,189 @@
+"use client";
+import React, { useState, useEffect } from 'react';
+import { ProductCard } from './ProductCard';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Package, Grid3x3, List } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useInView } from 'react-intersection-observer';
+
+interface ProductGridProps {
+  products: any[];
+  loading?: boolean;
+  onWishlistToggle?: (productId: string) => void;
+  wishlistedIds?: Set<string>;
+  viewMode?: 'grid' | 'list';
+  onViewModeChange?: (mode: 'grid' | 'list') => void;
+  showActions?: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+}
+
+export function ProductGrid({
+  products,
+  loading = false,
+  onWishlistToggle,
+  wishlistedIds = new Set(),
+  viewMode = 'grid',
+  onViewModeChange,
+  showActions = true,
+  onLoadMore,
+  hasMore = false,
+}: ProductGridProps) {
+  const [ref, inView] = useInView({
+    threshold: 0,
+  });
+
+  useEffect(() => {
+    if (inView && hasMore && !loading && onLoadMore) {
+      onLoadMore();
+    }
+  }, [inView, hasMore, loading, onLoadMore]);
+
+  if (loading && products.length === 0) {
+    return (
+      <div className={viewMode === 'grid' 
+        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+        : 'space-y-4'
+      }>
+        {[...Array(8)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-0">
+              <Skeleton className="w-full h-48 rounded-t-lg" />
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-12 text-center">
+          <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <h3 className="text-lg font-semibold mb-2">No products found</h3>
+          <p className="text-sm text-muted-foreground">
+            Try adjusting your filters or search terms
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {onViewModeChange && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="icon"
+            onClick={() => onViewModeChange('grid')}
+            className="cursor-pointer"
+          >
+            <Grid3x3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="icon"
+            onClick={() => onViewModeChange('list')}
+            className="cursor-pointer"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map((product, index) => (
+            <ProductCard
+              key={product._id}
+              product={product}
+              index={index}
+              onWishlistToggle={onWishlistToggle}
+              isWishlisted={wishlistedIds.has(product._id)}
+              showActions={showActions}
+            />
+          ))}
+        </div>
+      ) : (
+        <ScrollArea className="h-[800px]">
+          <div className="space-y-4 pr-4">
+            {products.map((product, index) => (
+              <Card key={product._id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <div className="flex gap-4">
+                    <div className="w-32 h-32 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      {product.images && product.images.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.images[0]}
+                          alt={product.title}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg mb-1 truncate">{product.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                        {product.description || 'No description available'}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold">${product.price || (product.priceCents / 100).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {product.location || 'Location not specified'}
+                          </p>
+                        </div>
+                        {showActions && onWishlistToggle && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onWishlistToggle(product._id);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Package className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      {hasMore && (
+        <div ref={ref} className="flex justify-center py-8">
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <Skeleton className="h-4 w-4 rounded-full" />
+            </div>
+          ) : (
+            <Button variant="outline" onClick={onLoadMore} className="cursor-pointer">
+              Load More
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+

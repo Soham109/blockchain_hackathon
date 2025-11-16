@@ -21,10 +21,38 @@ export interface IDVerification {
 export interface Product {
   _id?: string;
   sellerId: string;
+  sellerEmail?: string;
   title: string;
   description?: string;
   priceCents: number;
   images?: string[];
   category?: string;
+  location?: string;
+  createdAt?: Date;
+}
+
+export interface Message {
+  _id?: string;
+  conversationId: string;
+  senderId: string;
+  senderEmail: string;
+  receiverId: string;
+  receiverEmail: string;
+  content: string;
+  productId?: string;
+  productTitle?: string;
+  read: boolean;
+  createdAt?: Date;
+}
+
+export interface Conversation {
+  _id?: string;
+  participantIds: string[];
+  participantEmails: string[];
+  productId?: string;
+  productTitle?: string;
+  lastMessage?: string;
+  lastMessageAt?: Date;
+  unreadCount?: number;
   createdAt?: Date;
 }

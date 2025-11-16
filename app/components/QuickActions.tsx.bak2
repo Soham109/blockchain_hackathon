@@ -1,0 +1,144 @@
+"use client";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Search, Heart, MessageCircle, Settings, Store, TrendingUp, Bell, ShoppingBag, Package, BarChart3 } from 'lucide-react';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+interface QuickAction {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  href?: string;
+  onClick?: () => void;
+  variant?: 'default' | 'secondary' | 'outline';
+  badge?: string;
+}
+
+export function QuickActions() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const user = session?.user as any;
+
+  const actions: QuickAction[] = [
+    {
+      id: 'create-listing',
+      label: 'Create Listing',
+      description: 'List a new product for sale',
+      icon: Plus,
+      href: '/seller/create',
+      variant: 'default',
+    },
+    {
+      id: 'browse',
+      label: 'Browse Market',
+      description: 'Explore all available products',
+      icon: Search,
+      href: '/browse',
+    },
+    {
+      id: 'wishlist',
+      label: 'My Wishlist',
+      description: 'View your saved products',
+      icon: Heart,
+      href: '/wishlist',
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      description: 'Chat with buyers and sellers',
+      icon: MessageCircle,
+      href: '/chat',
+      badge: '3',
+    },
+    ...(user?.role === 'seller' ? [
+      {
+        id: 'seller-dashboard',
+        label: 'Seller Dashboard',
+        description: 'Manage your shop and listings',
+        icon: Store,
+        href: '/seller/dashboard',
+      },
+      {
+        id: 'analytics',
+        label: 'Analytics',
+        description: 'View your sales and performance',
+        icon: BarChart3,
+        href: '/seller/analytics',
+      },
+    ] : []),
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      description: 'View your recent notifications',
+      icon: Bell,
+      href: '/notifications',
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      description: 'Manage your account settings',
+      icon: Settings,
+      href: '/settings',
+    },
+  ];
+
+  return (
+    <TooltipProvider>
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Shortcuts to frequently used features</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {actions.map((action) => {
+              const Icon = action.icon;
+              const content = (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {action.href ? (
+                      <Link href={action.href}>
+                        <Button
+                          variant={action.variant || 'outline'}
+                          className="w-full h-20 flex flex-col items-center justify-center gap-2 cursor-pointer relative"
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-xs">{action.label}</span>
+                          {action.badge && (
+                            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                              {action.badge}
+                            </span>
+                          )}
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        variant={action.variant || 'outline'}
+                        onClick={action.onClick}
+                        className="w-full h-20 flex flex-col items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="text-xs">{action.label}</span>
+                      </Button>
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{action.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+              return <div key={action.id}>{content}</div>;
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
+  );
+}
+
+

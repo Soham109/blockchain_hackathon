@@ -11,18 +11,27 @@ export default function Card({
   children,
   className,
   hoverable = false,
+  variant = 'default',
   ...props
 }: {
   children: React.ReactNode;
   className?: string;
   hoverable?: boolean;
+  variant?: 'default' | 'gradient' | 'bordered';
   [key: string]: any;
 }) {
+  const variants = {
+    default: 'glass-panel',
+    gradient: 'glass-panel-enhanced',
+    bordered: 'gradient-border'
+  };
+
   return (
     <div
       className={cn(
-        'glass-panel rounded-2xl p-6 transition-all duration-300',
-        hoverable && 'hover:-translate-y-1 hover:shadow-2xl hover:shadow-violet-500/10 cursor-pointer',
+        variants[variant],
+        'rounded-lg p-6 transition-all duration-200',
+        hoverable && 'hover-lift cursor-pointer',
         className
       )}
       {...props}

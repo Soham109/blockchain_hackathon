@@ -1,0 +1,261 @@
+"use client";
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { X, Filter, SlidersHorizontal } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface AdvancedFiltersProps {
+  onFilterChange: (filters: FilterState) => void;
+  initialFilters?: FilterState;
+}
+
+export interface FilterState {
+  priceRange: [number, number];
+  categories: string[];
+  condition: string;
+  location: string;
+  sortBy: string;
+  availability: string;
+  rating: number;
+}
+
+const defaultFilters: FilterState = {
+  priceRange: [0, 10000],
+  categories: [],
+  condition: 'all',
+  location: '',
+  sortBy: 'newest',
+  availability: 'all',
+  rating: 0,
+};
+
+export function AdvancedFilters({ onFilterChange, initialFilters = defaultFilters }: AdvancedFiltersProps) {
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const categories = [
+    { id: 'textbooks', label: 'Textbooks' },
+    { id: 'electronics', label: 'Electronics' },
+    { id: 'furniture', label: 'Furniture' },
+    { id: 'services', label: 'Services' },
+    { id: 'clothing', label: 'Clothing' },
+    { id: 'other', label: 'Other' },
+  ];
+
+  const updateFilter = (key: keyof FilterState, value: any) => {
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    const newCategories = filters.categories.includes(categoryId)
+      ? filters.categories.filter(c => c !== categoryId)
+      : [...filters.categories, categoryId];
+    updateFilter('categories', newCategories);
+  };
+
+  const resetFilters = () => {
+    setFilters(defaultFilters);
+    onFilterChange(defaultFilters);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={() => setIsOpen(!isOpen)}
+          className="cursor-pointer"
+        >
+          <SlidersHorizontal className="mr-2 h-4 w-4" />
+          Advanced Filters
+        </Button>
+        {filters.categories.length > 0 || filters.priceRange[0] > 0 || filters.priceRange[1] < 10000 && (
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="cursor-pointer">
+            <X className="mr-2 h-4 w-4" />
+            Clear All
+          </Button>
+        )}
+      </div>
+
+      {isOpen && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Filter Products</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Accordion type="multiple" className="w-full">
+              <AccordionItem value="price">
+                <AccordionTrigger>Price Range</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="min-price">Min Price ($)</Label>
+                        <Input
+                          id="min-price"
+                          type="number"
+                          value={filters.priceRange[0]}
+                          onChange={(e) => updateFilter('priceRange', [Number(e.target.value) || 0, filters.priceRange[1]])}
+                          min={0}
+                          max={10000}
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="max-price">Max Price ($)</Label>
+                        <Input
+                          id="max-price"
+                          type="number"
+                          value={filters.priceRange[1]}
+                          onChange={(e) => updateFilter('priceRange', [filters.priceRange[0], Number(e.target.value) || 10000])}
+                          min={0}
+                          max={10000}
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="categories">
+                <AccordionTrigger>Categories</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    {categories.map((category) => (
+                      <div key={category.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={category.id}
+                          checked={filters.categories.includes(category.id)}
+                          onCheckedChange={() => toggleCategory(category.id)}
+                        />
+                        <Label
+                          htmlFor={category.id}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {category.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="condition">
+                <AccordionTrigger>Condition</AccordionTrigger>
+                <AccordionContent>
+                  <RadioGroup
+                    value={filters.condition}
+                    onValueChange={(value) => updateFilter('condition', value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="all" id="condition-all" />
+                      <Label htmlFor="condition-all" className="cursor-pointer">All</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="new" id="condition-new" />
+                      <Label htmlFor="condition-new" className="cursor-pointer">New</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="like-new" id="condition-like-new" />
+                      <Label htmlFor="condition-like-new" className="cursor-pointer">Like New</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="good" id="condition-good" />
+                      <Label htmlFor="condition-good" className="cursor-pointer">Good</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="fair" id="condition-fair" />
+                      <Label htmlFor="condition-fair" className="cursor-pointer">Fair</Label>
+                    </div>
+                  </RadioGroup>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="location">
+                <AccordionTrigger>Location</AccordionTrigger>
+                <AccordionContent>
+                  <Select
+                    value={filters.location}
+                    onValueChange={(value) => updateFilter('location', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      <SelectItem value="main-campus">Main Campus</SelectItem>
+                      <SelectItem value="north-campus">North Campus</SelectItem>
+                      <SelectItem value="south-campus">South Campus</SelectItem>
+                      <SelectItem value="dorms">Dorms</SelectItem>
+                      <SelectItem value="off-campus">Off Campus</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="sort">
+                <AccordionTrigger>Sort By</AccordionTrigger>
+                <AccordionContent>
+                  <RadioGroup
+                    value={filters.sortBy}
+                    onValueChange={(value) => updateFilter('sortBy', value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="newest" id="sort-newest" />
+                      <Label htmlFor="sort-newest" className="cursor-pointer">Newest First</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="oldest" id="sort-oldest" />
+                      <Label htmlFor="sort-oldest" className="cursor-pointer">Oldest First</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="price-low" id="sort-price-low" />
+                      <Label htmlFor="sort-price-low" className="cursor-pointer">Price: Low to High</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="price-high" id="sort-price-high" />
+                      <Label htmlFor="sort-price-high" className="cursor-pointer">Price: High to Low</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="popular" id="sort-popular" />
+                      <Label htmlFor="sort-popular" className="cursor-pointer">Most Popular</Label>
+                    </div>
+                  </RadioGroup>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            <Separator />
+
+            <div className="flex gap-2">
+              <Button onClick={resetFilters} variant="outline" className="flex-1 cursor-pointer">
+                Reset
+              </Button>
+              <Button onClick={() => setIsOpen(false)} className="flex-1 cursor-pointer">
+                Apply Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+

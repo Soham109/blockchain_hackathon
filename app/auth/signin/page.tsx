@@ -1,46 +1,203 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Mail, Lock, ArrowRight, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
 
-export default function SignInPage() {
+const EDU_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.edu$/i;
+
+function SignInContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showVerified, setShowVerified] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    if (searchParams?.get('verified') === 'true') {
+      setShowVerified(true);
+      // Hide after 5 seconds
+      setTimeout(() => setShowVerified(false), 5000);
+    }
+  }, [searchParams]);
+
+  function validateEmail(value: string) {
+    if (!value) {
+      setEmailError('');
+      return false;
+    }
+    if (!EDU_EMAIL_REGEX.test(value)) {
+      setEmailError('Please use a valid .edu email address');
+      return false;
+    }
+    setEmailError('');
+    return true;
+  }
+
+  function handleEmailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setEmail(value);
+    validateEmail(value);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const res = await signIn('credentials', { redirect: false, email, password });
-    if ((res as any)?.ok) {
-      router.push('/onboarding');
-    } else {
-      setError('Authentication failed. Make sure your email is verified and password is correct.');
+    if (!validateEmail(email)) {
+      setError('Please enter a valid .edu email address');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await signIn('credentials', { redirect: false, email, password });
+      if ((res as any)?.ok) {
+        // Check if user needs to verify email or complete onboarding
+        router.push('/dashboard');
+      } else {
+        setError('Invalid email or password. Make sure your email is verified.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div className="p-8 bg-white/5 rounded w-full max-w-md">
-        <h2 className="text-lg font-bold mb-4">Sign in</h2>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-slate-300">Email</label>
-            <Input value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setEmail(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm text-slate-300">Password</label>
-            <Input type="password" value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPassword(e.target.value)} />
-          </div>
-          {error && <div className="text-sm text-red-400">{error}</div>}
-          <div>
-            <Button type="submit">Sign in</Button>
-          </div>
-        </form>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 mb-4">
+            <div className="h-10 w-10 rounded-lg bg-foreground flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5 text-background" />
+            </div>
+            <span className="font-bold text-2xl">UniMarket</span>
+          </Link>
+          <p className="text-muted-foreground">Welcome back to your student marketplace</p>
+        </div>
+
+        <Card className="border-2">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
+            <CardDescription>
+              Enter your credentials to access your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {showVerified && (
+              <Alert className="mb-4 border-emerald-500/50 bg-emerald-500/10">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <AlertDescription className="text-emerald-700 dark:text-emerald-400">
+                  Email verified successfully! You can now sign in.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <form onSubmit={submit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    placeholder="you@university.edu"
+                    className={`pl-10 ${emailError ? 'border-destructive' : ''}`}
+                    required
+                  />
+                </div>
+                {emailError && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {emailError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading}
+                size="lg"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Signing in...
+                  </span>
+                ) : (
+                  <>
+                    Sign In
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link href="/signup" className="text-primary hover:underline font-medium">
+                Sign up
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

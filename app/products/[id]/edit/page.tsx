@@ -1,14 +1,28 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import Input from '../../../components/ui/Input';
-import Button from '../../../components/ui/Button';
-import Loading from '../../../components/ui/Loading';
-import Card from '../../../components/ui/Card';
+import { useSession } from 'next-auth/react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import ImageUpload from '../../../components/ui/ImageUpload';
+import { useToast } from '@/components/ui/use-toast';
 
-export default function EditProductPage({ params }: any) {
-  const { id } = params;
+export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
+  const { toast } = useToast();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -17,79 +31,180 @@ export default function EditProductPage({ params }: any) {
     fetch(`/api/products/${id}`)
       .then((r) => r.json())
       .then((d) => {
+        if (d.product) {
+          // Check if user owns this product
+          if (session?.user && (d.product.sellerEmail !== (session.user as any).email && d.product.sellerId !== (session.user as any).id)) {
+            router.push('/dashboard');
+            return;
+          }
         setProduct(d.product);
+        }
         setLoading(false);
       })
       .catch((e) => {
         console.error(e);
         setLoading(false);
       });
-  }, [id]);
+  }, [id, session, router]);
 
-  if (loading) return <Loading fullscreen message="Loading..." />;
-  if (!product) return <div className="p-8">Not found</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-24 pb-12 px-4">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
+  if (!product) {
+    return (
+      <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">Product not found</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   async function handleSave() {
+    if (!product.title || !product.priceCents) {
+      toast({
+        title: "Validation Error",
+        description: "Title and price are required",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
     try {
       const updates = {
         title: product.title,
-        description: product.description,
+        description: product.description || '',
         priceCents: product.priceCents,
-        category: product.category,
-        location: product.location,
+        category: product.category || 'other',
+        location: product.location || '',
         images: product.images || [],
       };
-      const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+      const res = await fetch(`/api/products/${id}`, { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(updates) 
+      });
       if (!res.ok) throw new Error('Save failed');
+      toast({
+        title: "Success",
+        description: "Listing updated successfully!",
+      });
       router.push(`/products/${id}`);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Failed to save');
+      toast({
+        title: "Error",
+        description: e.message || 'Failed to save',
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-h-screen pt-24 pb-12 px-4 bg-background">
+      <div className="max-w-4xl mx-auto">
         <Card>
-          <h2 className="text-2xl font-bold mb-4">Edit Listing</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-300 mb-1">Title</label>
-              <Input value={product.title} onChange={(e: any) => setProduct({ ...product, title: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-300 mb-1">Description</label>
-              <textarea value={product.description} onChange={(e) => setProduct({ ...product, description: e.target.value })} className="w-full rounded-xl p-3 bg-zinc-900/50 text-white" rows={4} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+          <CardHeader>
+            <CardTitle className="text-3xl">Edit Listing</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Price (USD)</label>
-                <Input value={String((product.priceCents || 0) / 100)} onChange={(e: any) => setProduct({ ...product, priceCents: Math.round(Number(e.target.value) * 100) })} />
+                <Label htmlFor="title">Title *</Label>
+                <Input 
+                  id="title"
+                  value={product.title} 
+                  onChange={(e) => setProduct({ ...product, title: e.target.value })} 
+                  placeholder="Enter product title"
+                />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Category</label>
-                <select value={product.category} onChange={(e) => setProduct({ ...product, category: e.target.value })} className="w-full rounded-xl p-2 bg-zinc-900/50 text-white">
-                  <option value="textbooks">Textbooks</option>
-                  <option value="electronics">Electronics</option>
-                  <option value="furniture">Furniture</option>
-                  <option value="services">Services</option>
-                </select>
+                <Label htmlFor="description">Description</Label>
+                <Textarea 
+                  id="description"
+                  value={product.description || ''} 
+                  onChange={(e) => setProduct({ ...product, description: e.target.value })} 
+                  rows={5}
+                  placeholder="Describe your product..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="price">Price (USD) *</Label>
+                  <Input 
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={String((product.priceCents || 0) / 100)} 
+                    onChange={(e) => setProduct({ ...product, priceCents: Math.round(Number(e.target.value) * 100) })} 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select 
+                    value={product.category || 'other'} 
+                    onValueChange={(value) => setProduct({ ...product, category: value })}
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="textbooks">Textbooks</SelectItem>
+                      <SelectItem value="electronics">Electronics</SelectItem>
+                      <SelectItem value="furniture">Furniture</SelectItem>
+                      <SelectItem value="services">Services</SelectItem>
+                      <SelectItem value="clothing">Clothing</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input 
+                  id="location"
+                  value={product.location || ''} 
+                  onChange={(e) => setProduct({ ...product, location: e.target.value })} 
+                  placeholder="e.g., Main Campus, Dorm Building A"
+                />
+              </div>
+
+              <div>
+                <Label>Product Images</Label>
+                <ImageUpload
+                  images={product.images || []}
+                  onChange={(images) => setProduct({ ...product, images })}
+                  maxImages={5}
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <Button
+                  variant="ghost"
+                  onClick={() => router.back()}
+                  disabled={busy}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={busy}>
+                  {busy ? 'Saving...' : 'Save Changes'}
+                </Button>
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm text-slate-300 mb-1">Location</label>
-              <Input value={product.location || ''} onChange={(e) => setProduct({ ...product, location: e.target.value })} />
-            </div>
-
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={busy}>{busy ? 'Saving...' : 'Save'}</Button>
-            </div>
-          </div>
+          </CardContent>
         </Card>
       </div>
     </main>
